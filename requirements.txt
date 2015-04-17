@@ -1,3 +1,4 @@
 -e git://github.com/chrishoffman/smugpy.git#egg=smugpy
 mock
 nose
+pylint
