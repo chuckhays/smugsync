@@ -6,7 +6,7 @@ python:
 # command to install dependencies
 install: "pip install -r requirements.txt"
 # command to run tests
-script: nosetests
+script: nosetests && pylint --errors-only connectors.smugsync connectors.filesystem
 
 notifications:
   slack: smugsync:vrkpzFAUm5ORKTcJaECpFEdL
