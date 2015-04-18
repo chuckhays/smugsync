@@ -4,5 +4,5 @@ class ConnectorBase:
         self.root = root
 
     def enumerate_objects(self):
-        pass
+        raise NotImplementedError("Please Implement this method")
         
