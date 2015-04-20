@@ -6,10 +6,16 @@ from file import File
 class FileSystemConnector(ConnectorBase):
         
   def enumerate_objects(self):
-    files = []
+    print 'Enumerating files in %s' % self.root
+    results = []
     # Recursively list all of the files under root.
-    allFiles = [self.create_file(dir, f) for dir, dirs, files in os.walk(self.root) for f in files]
-    return allFiles
+    for dir, dirs, files in os.walk(self.root):
+      for f in files:
+        fileObject = self.create_file(dir, f)
+        results.append(fileObject)
+    return results
+    #allFiles = [self.create_file(dir, f) for dir, dirs, files in os.walk(self.root) for f in files]
+    #return allFiles
 
   def create_file(self, filePath, fileName):
     file = File()
