@@ -22,18 +22,12 @@ class FileTest(unittest.TestCase):
         ('/foo', ('bar',), ('baz',)),
         ('/foo/bar', (), ('spam', 'eggs')),
     ]
-    mock_mtime.return_value = 'abc'
-    mock_ctime.return_value = 'def'
+    mock_mtime.return_value = 1411348428.81
+    mock_ctime.return_value = 123
     mock_size.return_value = 300
     fc = FileSystemConnector('/tmp')
     list = fc.enumerate_objects()
-    print "asdasdas"
-    for f in list:
-      print f.name
-      print f.originalPath
-      print f.relPath
-      print f.size
-
+    self.assertEqual(3, len(list))
 
   def test_type_from_extension(self):
     assert fileType.TYPE_IMAGE == File.type_from_extension('PnG')

@@ -7,14 +7,13 @@ class FileSystemConnector(ConnectorBase):
         
   def enumerate_objects(self):
     print 'Enumerating files in %s' % self.root
-    files = []
+    results = []
     # Recursively list all of the files under root.
     for dir, dirs, files in os.walk(self.root):
-      print "dir: %s" % dir
       for f in files:
-        file = self.create_file(dir, f)
-        files.append(file)
-    return files
+        fileObject = self.create_file(dir, f)
+        results.append(fileObject)
+    return results
     #allFiles = [self.create_file(dir, f) for dir, dirs, files in os.walk(self.root) for f in files]
     #return allFiles
 
