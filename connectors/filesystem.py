@@ -4,6 +4,9 @@ from connectorbase import ConnectorBase
 from file import File
 
 class FileSystemConnector(ConnectorBase):
+
+  def authenticate(self, config_file):
+    return True
         
   def enumerate_objects(self):
     print 'Enumerating files in %s' % self.root

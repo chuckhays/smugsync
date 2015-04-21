@@ -1,6 +1,7 @@
 import connectors.file as fileType
 from connectors.file import File
 from connectors.filesystem import FileSystemConnector
+import connectors.connectorbase as connectorbase
 import mock
 import unittest
 
@@ -25,7 +26,7 @@ class FileTest(unittest.TestCase):
     mock_mtime.return_value = 1411348428.81
     mock_ctime.return_value = 123
     mock_size.return_value = 300
-    fc = FileSystemConnector('/tmp')
+    fc = FileSystemConnector({ connectorbase.ROOT_KEY : '/tmp'})
     list = fc.enumerate_objects()
     self.assertEqual(3, len(list))
 
