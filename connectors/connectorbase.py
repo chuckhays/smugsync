@@ -1,7 +1,7 @@
 ROOT_KEY = "rootPath"
 DATA_FILE_KEY = "dataFile"
 
-class ConnectorBase:
+class ConnectorBase(object):
 
     def __init__(self, config_data):
       self.config_data = config_data
