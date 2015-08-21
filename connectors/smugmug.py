@@ -31,7 +31,7 @@ class SmugMugConnector(ConnectorBase):
     # Check for cached accessToken
     self.access_token = data.get(ACCESS_TOKEN_KEY)
     if not self.access_token:
-      smugmug = SmugMug(api_key=self.api_key, oauth_secret=self.oauth_secret, app_name=self.app_name)
+      smugmug = SmugMug(api_key=self.api_key, oauth_secret=self.oauth_secret, app_name=self.app_name, api_version='2.0')
 
       response = smugmug.auth_getRequestToken()
       # If we want to write to smugmug, need to change perm.
@@ -40,7 +40,7 @@ class SmugMugConnector(ConnectorBase):
       raw_input('Visit %s to authorize app and press enter when complete.\n' % (url))
 
       smugmug = SmugMug(api_key=self.api_key, oauth_secret=self.oauth_secret, oauth_token=requestToken['Token']['id'],
-                        oauth_token_secret=requestToken['Token']['Secret'], app_name=self.app_name)
+                        oauth_token_secret=requestToken['Token']['Secret'], app_name=self.app_name, api_version='2.0')
       response = smugmug.auth_getAccessToken()
       self.access_token = response['Auth']
 
@@ -48,7 +48,7 @@ class SmugMugConnector(ConnectorBase):
         json.dump({ ACCESS_TOKEN_KEY : self.access_token }, json_data)
 
     self.smugmug = SmugMug(api_key=self.api_key, oauth_secret=self.oauth_secret, oauth_token=self.access_token['Token']['id'],
-                           oauth_token_secret=self.access_token['Token']['Secret'], app_name=self.app_name)
+                           oauth_token_secret=self.access_token['Token']['Secret'], app_name=self.app_name, api_version='2.0')
     return True
 
   def enumerate_objects(self):
