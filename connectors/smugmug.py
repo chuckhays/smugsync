@@ -64,7 +64,7 @@ class SmugMugConnector(ConnectorBase):
       with open(filename, 'w') as json_data:
         json.dump({ ACCESS_TOKEN_KEY : self.access_token, ACCESS_TOKEN_SECRET_KEY : self.access_token_secret }, json_data)
     self.session = OAuth1Session(self.api_key, self.oauth_secret, access_token=self.access_token, access_token_secret=self.access_token_secret)
-    print(self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).text)
+    #print(self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json())
     return True
 
   def add_auth_params(self, auth_url, access=None, permissions=None):
@@ -79,12 +79,30 @@ class SmugMugConnector(ConnectorBase):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query, True), parts.fragment))
 
   def enumerate_objects(self):
-    result = self.session.get(API_ORIGIN + '/api/v2/user/cmac', headers={'Accept': 'application/json'})
-    j = result.json()
-    print 'Result:'
-    print result
-    print 'JSON:'
-    print j
+    # Find authed user.
+    authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
+    userAlbumsUri = authUser['Response']['User']['Uris']['UserAlbums']['Uri']
+    # Request all albums.
+    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri,params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
+    albumsArray = userAlbums['Response']['Album']
+    for album in albumsArray:
+      print 'album: ' + album['Name'] + '(' + album['UrlPath'] + ')'
+      
+     
+    
+    #print 'JSON:'
+    #print json.dumps(j, indent=2)
+    
+    #with open ('albums.json', 'w') as albumsjson:
+    #  json.dump(j, albumsjson, indent=2)
+     
+
+   
+    #albumImages = self.session.get(API_ORIGIN + '/api/v2/album/wPz4TZ!images', headers={'Accept': 'application/json'})
+    #j = albumImages.json()
+    #print json.dumps(j, indent=2)
+    #with open ('images.json', 'w') as imagesjson:
+    #  json.dump(j, imagesjson, indent=2)
     #albums = self.smugmug.albums_get(NickName=self.access_token['User']['NickName'])
     #for album in albums["Albums"]:
     #  print("%s, %s" % (album["id"], album["Title"]))
