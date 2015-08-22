@@ -79,6 +79,7 @@ class SmugMugConnector(ConnectorBase):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query, True), parts.fragment))
 
   def enumerate_objects(self):
+    images = []
     # Find authed user.
     authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
     userAlbumsUri = authUser['Response']['User']['Uris']['UserAlbums']['Uri']
@@ -87,23 +88,11 @@ class SmugMugConnector(ConnectorBase):
     albumsArray = userAlbums['Response']['Album']
     for album in albumsArray:
       print 'album: ' + album['Name'] + '(' + album['UrlPath'] + ')'
-      
+      albumUri = album['Uris']['AlbumImages']['Uri']
+      albumImages = self.session.get(API_ORIGIN + albumUri, params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
+      imagesArray = albumImages['Response']['AlbumImage']
+      for image in imagesArray:
+        img = { 'name' : image['FileName'], 'size' : image['ArchivedSize'], 'md5' : image['ArchivedMD5'], 'folder' : album['UrlPath'] }
+        images.append(img)
      
-    
-    #print 'JSON:'
-    #print json.dumps(j, indent=2)
-    
-    #with open ('albums.json', 'w') as albumsjson:
-    #  json.dump(j, albumsjson, indent=2)
-     
-
-   
-    #albumImages = self.session.get(API_ORIGIN + '/api/v2/album/wPz4TZ!images', headers={'Accept': 'application/json'})
-    #j = albumImages.json()
-    #print json.dumps(j, indent=2)
-    #with open ('images.json', 'w') as imagesjson:
-    #  json.dump(j, imagesjson, indent=2)
-    #albums = self.smugmug.albums_get(NickName=self.access_token['User']['NickName'])
-    #for album in albums["Albums"]:
-    #  print("%s, %s" % (album["id"], album["Title"]))
-    return []
+    return images
