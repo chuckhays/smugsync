@@ -23,6 +23,9 @@ class File(object):
   size = None
   originalPath = None
 
+  def __str__(self):
+    return (self.name + ' : ' + self.originalPath + ' size:(%d)') % self.size
+
   @classmethod
   def type_from_extension(cls, extension):
     if not extension:

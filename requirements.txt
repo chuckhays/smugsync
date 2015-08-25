@@ -2,3 +2,5 @@ rauth
 mock
 nose
 pylint
+clint
+python-dateutil

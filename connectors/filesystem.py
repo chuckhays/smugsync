@@ -17,8 +17,6 @@ class FileSystemConnector(ConnectorBase):
         fileObject = self.create_file(dir, f)
         results.append(fileObject)
     return results
-    #allFiles = [self.create_file(dir, f) for dir, dirs, files in os.walk(self.root) for f in files]
-    #return allFiles
 
   def create_file(self, filePath, fileName):
     file = File()
