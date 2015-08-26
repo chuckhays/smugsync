@@ -1,7 +1,7 @@
 import datetime
 import os
 from connectorbase import ConnectorBase
-from file import File
+from file import File, FileEncoder
 import sys
 import json
 import time
@@ -95,7 +95,7 @@ class SmugMugConnector(ConnectorBase):
     return current
 
   def enumerate_objects(self):
-    images = []
+    images = {}
     # Find authed user.
     authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
     userAlbumsUri = self.get_json_key(authUser,['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
@@ -117,7 +117,8 @@ class SmugMugConnector(ConnectorBase):
       albumUri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
       cachedImages = self.check_cache(albumUri, albumLastUpdatedString)
       if cachedImages is not None:
-        images.extend(cachedImages)
+        for image in images:
+          self.add_file_to_hash(image, images)
         continue
       if albumUri is None:
         print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
@@ -135,9 +136,16 @@ class SmugMugConnector(ConnectorBase):
         continue
       albumImages = []
       for image in imagesArray:
-        img = { 'name' : image['FileName'], 'size' : image['ArchivedSize'], 'md5' : image['ArchivedMD5'], 'folder' : album['UrlPath'] }
-        albumImages.append(img)
-        images.append(img)
+        file = File()
+        file.name = self.get_json_key(image, ['FileName'])
+        file.relativePath = os.path.normpath(self.get_json_key(album, ['UrlPath']))
+        file.originalPath = os.path.normpath(os.path.join(file.relativePath, file.name))
+        file.size = self.get_json_key(image, ['ArchivedSize'])
+
+        _, fileExtension = os.path.splitext(file.name)
+        file.type = File.type_from_extension(fileExtension)
+        albumImages.append(file)
+        self.add_file_to_hash(file, images)
       self.put_cache(albumUri, albumLastUpdatedString, album, albumImages)
      
     return images
@@ -172,13 +180,23 @@ class SmugMugConnector(ConnectorBase):
     self.cache[album_uri] = data
     self.save_cache()
 
+  def file_from_dict(self, d):
+    f = File()
+    f.__dict__.update(d)
+    return f
+
   def init_cache(self):
     if self.cache is None:
       try:
         data = {}
         if os.path.exists(CACHE_FILE):
-         with open(CACHE_FILE, 'r') as json_data:
-           data = json.load(json_data)
+          with open(CACHE_FILE, 'r') as json_data:
+            data = json.load(json_data)
+        for uri in data:
+          v = data[uri]
+          images = v['images']
+          files = [self.file_from_dict(i) for i in images]
+          v['images'] = files
         self.cache = data
       except ValueError:
         print 'Empty or corrupted json cache.'
@@ -186,5 +204,4 @@ class SmugMugConnector(ConnectorBase):
 
   def save_cache(self):
     with open(CACHE_FILE, 'w') as json_data:
-      json.dump(self.cache, json_data)
-
+      json.dump(self.cache, json_data, cls=FileEncoder)
