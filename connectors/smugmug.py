@@ -115,10 +115,10 @@ class SmugMugConnector(ConnectorBase):
       #albumUri = self.get_json_key(album, ['Uri'])
       albumLastUpdatedString = self.get_json_key(album, ['ImagesLastUpdated'])
       albumUri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
-      cachedImages = self.check_cache(albumUri, albumLastUpdatedString)
-      if cachedImages is not None:
-        for image in images:
-          self.add_file_to_hash(image, images)
+      cached_images = self.check_cache(albumUri, albumLastUpdatedString)
+      if cached_images is not None:
+        for cached_image in cached_images:
+          self.add_file_to_hash(cached_image, images)
         continue
       if albumUri is None:
         print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
