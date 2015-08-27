@@ -4,3 +4,4 @@ nose
 pylint
 clint
 python-dateutil
+Pillow

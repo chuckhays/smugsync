@@ -24,6 +24,7 @@ class File(object):
   relPath = None
   size = None
   originalPath = None
+  metadata = None
 
   def __str__(self):
     return (self.name + ' : ' + self.originalPath + ' size:(%d)') % self.size

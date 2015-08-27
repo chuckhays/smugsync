@@ -2,6 +2,7 @@ import datetime
 import os
 from connectorbase import ConnectorBase
 from file import File
+from PIL import Image, ExifTags
 
 class FileSystemConnector(ConnectorBase):
 
@@ -31,6 +32,14 @@ class FileSystemConnector(ConnectorBase):
 
     _, fileExtension = os.path.splitext(file.originalPath)
     file.type = File.type_from_extension(fileExtension)
+
+    img = Image.open(file.originalPath)
+    exif = {
+      ExifTags.TAGS[k]: v
+      for k, v in img._getexif().items()
+      if k in ExifTags.TAGS
+    }
+    file.metadata = exif
 
     return file
 
