@@ -117,18 +117,24 @@ class SmugMugConnector(ConnectorBase):
       # Check cache for album!images results, if not, request from network.
       cached_album_images = None
       with self.cache_lock:
-        _, cached_album_images = self.check_cache(album_uri, album_last_updated_string)
+        try:
+          _, cached_album_images_json = self.check_cache(album_uri, album_last_updated_string)
+          if cached_album_images_json is not None:
+            cached_album_images = json.loads(cached_album_images_json)
+        except Exception as e:
+          print 'Exception checking cache for album: ' + album_uri + ' :: ' + e.message
       if cached_album_images is None:
         if album_uri is None:
           print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
           return
-        cached_album_images = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
+        cached_album_images_response = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000'}, headers={'Accept': 'application/json'})
+        cached_album_images = cached_album_images_response.json()
         with self.cache_lock:
-          self.put_cache(album_uri, album_last_updated_string, album, cached_album_images)
+          self.put_cache(album_uri, album_last_updated_string, album, cached_album_images_response.text)
       images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
       if images_array is None:
         print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
-        return
+        images_array = []
 
       for image in images_array:
         file = File()
@@ -177,24 +183,27 @@ class SmugMugConnector(ConnectorBase):
       self.bar.show(self.thread_count)
 
   # Check for unexpired cached json results.
-  def check_cache(self, album_uri, album_last_updated_string):
+  def check_cache(self, album_uri, new_album_last_updated_string):
     album_uri = str(album_uri)
     self.init_cache()
     if not album_uri in self.shelve:
       return (None, None)
     data = self.shelve[album_uri]
-    album_last_updated = datetime.datetime.now()
-    if album_last_updated_string is not None:
-      album_last_updated = parser.parse(album_last_updated_string)
+    new_album_last_updated = datetime.datetime.now()
+    if new_album_last_updated_string is not None:
+      new_album_last_updated = parser.parse(new_album_last_updated_string)
     cached_album_last_updated_string = self.get_json_key(data, ['lastupdated'])
-    cached_album_last_updated = datetime.datetime.fromtimestamp(0)
+    cached_album_last_updated = None
     if cached_album_last_updated_string is not None:
       cached_album_last_updated = parser.parse(cached_album_last_updated_string)
     if not isinstance(cached_album_last_updated, datetime.datetime):
       return (None, None)
-    if not isinstance(album_last_updated, datetime.datetime):
+    if not isinstance(new_album_last_updated, datetime.datetime):
       return (None, None)
-    if cached_album_last_updated < album_last_updated:
+    # If the cached last updated value is less than the one from the json response, don't use cache.
+    # Ex. cached was last updated 12/15/2014, new response says 12/25/2014, we shouldn't use cached
+    # values.
+    if cached_album_last_updated < new_album_last_updated:
       return (None, None)
     return (self.get_json_key(data, ['album']), self.get_json_key(data, ['images']))
 
@@ -206,7 +215,6 @@ class SmugMugConnector(ConnectorBase):
       'images' : images,
     }
     self.shelve[album_uri] = data
-    self.save_cache()
 
   def init_cache(self):
     if self.shelve is None:
