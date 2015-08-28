@@ -5,6 +5,7 @@ from file import File, FileEncoder
 import sys
 import json
 import time
+import threading
 
 import shelve
 
@@ -34,6 +35,8 @@ BASE_URL = API_ORIGIN + '/api/v2'
 
 CACHE_FILE = 'smugmug.cache'
 
+MAX_THREADS = 10
+
 class SmugMugConnector(ConnectorBase):
 
   def __init__(self, config_data):
@@ -44,6 +47,16 @@ class SmugMugConnector(ConnectorBase):
     self.access_token = None
     self.cache = None
     self.shelve = None
+
+    self.images = None
+    self.bar = None
+
+    self.max_threads_lock = threading.Semaphore(MAX_THREADS)
+
+    self.thread_count = 0
+    self.thread_count_lock = threading.Lock()
+    self.cache_lock = threading.Lock()
+    self.output_lock = threading.Lock()
 
   def authenticate(self):
     filename = self.data_file
@@ -96,47 +109,26 @@ class SmugMugConnector(ConnectorBase):
         return None
       current = current[key]
     return current
-
-  def enumerate_objects(self):
-    images = {}
-    # Find authed user.
-    authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
-    userAlbumsUri = self.get_json_key(authUser,['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
-    if userAlbumsUri is None:
-      print 'Could not find URI for user\'s albums'
-      return images
-    # Request all albums.
-    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri,params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
-
-    albumsArray = self.get_json_key(userAlbums, ['Response', 'Album'])
-    if albumsArray is None:
-      print 'Could not find list of albums for user'
-      return images
-
-    for album in progress.bar(albumsArray):
-      # If an album is in the cache, and the last updated timestamp matches, we can use the cached value.
-      #albumUri = self.get_json_key(album, ['Uri'])
+  
+  def fetch_album_images(self, album):
+    with self.max_threads_lock:
       album_last_updated_string = self.get_json_key(album, ['ImagesLastUpdated'])
       album_uri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
-
       # Check cache for album!images results, if not, request from network.
-      _, cached_album_images = self.check_cache(album_uri, album_last_updated_string)
+      cached_album_images = None
+      with self.cache_lock:
+        _, cached_album_images = self.check_cache(album_uri, album_last_updated_string)
       if cached_album_images is None:
         if album_uri is None:
           print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
-          continue
-        #start_time = time.time()
+          return
         cached_album_images = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
-        self.put_cache(album_uri, album_last_updated_string, album, cached_album_images)
-      #elapsed_time = time.time() - start_time
-      #time_from_json = self.get_json_key(albumImages, ['Response', 'Timing', 'Total', 'time'])
-      #if time_from_json is None:
-      #  time_from_json = 0.0
-      #print 'elapsed time: %f total time: %f ' % (elapsed_time, time_from_json)
+        with self.cache_lock:
+          self.put_cache(album_uri, album_last_updated_string, album, cached_album_images)
       images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
       if images_array is None:
         print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
-        continue
+        return
 
       for image in images_array:
         file = File()
@@ -146,9 +138,43 @@ class SmugMugConnector(ConnectorBase):
         file.size = self.get_json_key(image, ['ArchivedSize'])
         _, file_extension = os.path.splitext(file.name)
         file.type = File.type_from_extension(file_extension)
-        self.add_file_to_hash(file, images)
+        with self.output_lock:
+          self.add_file_to_hash(file, self.images)
+      self.increment_threadcount()
+
+  def enumerate_objects(self):
+    self.images = {}
+    # Find authed user.
+    authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
+    userAlbumsUri = self.get_json_key(authUser,['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
+    if userAlbumsUri is None:
+      print 'Could not find URI for user\'s albums'
+      return self.images
+    # Request all albums.
+    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri,params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
+
+    albums_array = self.get_json_key(userAlbums, ['Response', 'Album'])
+    if albums_array is None:
+      print 'Could not find list of albums for user'
+      return self.images
+
+    self.bar = progress.Bar(expected_size = len(albums_array))
+    threads = []
+    for album in albums_array:
+      thread = threading.Thread(target=self.fetch_album_images, args=(album,))
+      thread.start()
+      threads.append(thread)
+
+    for thread in threads:
+      thread.join()
+
     self.shelve.close()
-    return images
+    return self.images
+
+  def increment_threadcount(self):
+    with self.thread_count_lock:
+      self.thread_count += 1
+      self.bar.show(self.thread_count)
 
   # Check for unexpired cached json results.
   def check_cache(self, album_uri, album_last_updated_string):
