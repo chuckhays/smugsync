@@ -25,6 +25,10 @@ class File(object):
   size = None
   originalPath = None
   metadata = None
+  width = None
+  height = None
+  exif_date = None
+
 
   def __str__(self):
     return (self.name + ' : ' + self.originalPath + ' size:(%d)') % self.size

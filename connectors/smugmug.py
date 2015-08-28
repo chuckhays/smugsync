@@ -6,6 +6,8 @@ import sys
 import json
 import time
 
+import shelve
+
 from rauth import OAuth1Service
 from rauth import OAuth1Session
 #from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
@@ -41,6 +43,7 @@ class SmugMugConnector(ConnectorBase):
     self.app_name = config_data.get(APP_NAME_KEY)
     self.access_token = None
     self.cache = None
+    self.shelve = None
 
   def authenticate(self):
     filename = self.data_file
@@ -113,49 +116,47 @@ class SmugMugConnector(ConnectorBase):
     for album in progress.bar(albumsArray):
       # If an album is in the cache, and the last updated timestamp matches, we can use the cached value.
       #albumUri = self.get_json_key(album, ['Uri'])
-      albumLastUpdatedString = self.get_json_key(album, ['ImagesLastUpdated'])
-      albumUri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
-      cached_images = self.check_cache(albumUri, albumLastUpdatedString)
-      if cached_images is not None:
-        for cached_image in cached_images:
-          self.add_file_to_hash(cached_image, images)
-        continue
-      if albumUri is None:
-        print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
-        continue
-      #start_time = time.time()
-      albumImages = self.session.get(API_ORIGIN + albumUri, params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
+      album_last_updated_string = self.get_json_key(album, ['ImagesLastUpdated'])
+      album_uri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
+
+      # Check cache for album!images results, if not, request from network.
+      _, cached_album_images = self.check_cache(album_uri, album_last_updated_string)
+      if cached_album_images is None:
+        if album_uri is None:
+          print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
+          continue
+        #start_time = time.time()
+        cached_album_images = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000'}, headers={'Accept': 'application/json'}).json()
+        self.put_cache(album_uri, album_last_updated_string, album, cached_album_images)
       #elapsed_time = time.time() - start_time
       #time_from_json = self.get_json_key(albumImages, ['Response', 'Timing', 'Total', 'time'])
       #if time_from_json is None:
       #  time_from_json = 0.0
       #print 'elapsed time: %f total time: %f ' % (elapsed_time, time_from_json)
-      imagesArray = self.get_json_key(albumImages, ['Response', 'AlbumImage'])
-      if imagesArray is None:
-        print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + albumUri
+      images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
+      if images_array is None:
+        print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
         continue
-      albumImages = []
-      for image in imagesArray:
+
+      for image in images_array:
         file = File()
         file.name = self.get_json_key(image, ['FileName'])
         file.relativePath = os.path.normpath(self.get_json_key(album, ['UrlPath']))
         file.originalPath = os.path.normpath(os.path.join(file.relativePath, file.name))
         file.size = self.get_json_key(image, ['ArchivedSize'])
-
-        _, fileExtension = os.path.splitext(file.name)
-        file.type = File.type_from_extension(fileExtension)
-        albumImages.append(file)
+        _, file_extension = os.path.splitext(file.name)
+        file.type = File.type_from_extension(file_extension)
         self.add_file_to_hash(file, images)
-      self.put_cache(albumUri, albumLastUpdatedString, album, albumImages)
-     
+    self.shelve.close()
     return images
 
+  # Check for unexpired cached json results.
   def check_cache(self, album_uri, album_last_updated_string):
-
+    album_uri = str(album_uri)
     self.init_cache()
-    if not album_uri in self.cache:
-      return None
-    data = self.cache[album_uri]
+    if not album_uri in self.shelve:
+      return (None, None)
+    data = self.shelve[album_uri]
     album_last_updated = datetime.datetime.now()
     if album_last_updated_string is not None:
       album_last_updated = parser.parse(album_last_updated_string)
@@ -164,44 +165,26 @@ class SmugMugConnector(ConnectorBase):
     if cached_album_last_updated_string is not None:
       cached_album_last_updated = parser.parse(cached_album_last_updated_string)
     if not isinstance(cached_album_last_updated, datetime.datetime):
-      return None
+      return (None, None)
     if not isinstance(album_last_updated, datetime.datetime):
-      return None
+      return (None, None)
     if cached_album_last_updated < album_last_updated:
-      return None
-    return self.get_json_key(data, ['images'])
+      return (None, None)
+    return (self.get_json_key(data, ['album']), self.get_json_key(data, ['images']))
 
   def put_cache(self, album_uri, album_last_updated_string, album, images):
+    album_uri = str(album_uri)
     data = {
       'lastupdated' : album_last_updated_string,
       'album' : album,
       'images' : images,
     }
-    self.cache[album_uri] = data
+    self.shelve[album_uri] = data
     self.save_cache()
 
-  def file_from_dict(self, d):
-    f = File()
-    f.__dict__.update(d)
-    return f
-
   def init_cache(self):
-    if self.cache is None:
-      try:
-        data = {}
-        if os.path.exists(CACHE_FILE):
-          with open(CACHE_FILE, 'r') as json_data:
-            data = json.load(json_data)
-        for uri in data:
-          v = data[uri]
-          images = v['images']
-          files = [self.file_from_dict(i) for i in images]
-          v['images'] = files
-        self.cache = data
-      except ValueError:
-        print 'Empty or corrupted json cache.'
-        self.cache = {}
+    if self.shelve is None:
+      self.shelve = shelve.open(CACHE_FILE, writeback = True)
 
   def save_cache(self):
-    with open(CACHE_FILE, 'w') as json_data:
-      json.dump(self.cache, json_data, cls=FileEncoder)
+    self.shelve.sync()
