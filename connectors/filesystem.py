@@ -4,6 +4,7 @@ from connectorbase import ConnectorBase
 from file import File
 from PIL import Image, ExifTags
 import shelve
+import json
 
 from clint.textui import progress
 from dateutil import parser
@@ -64,6 +65,36 @@ class FileSystemConnector(ConnectorBase):
         exif = {}
       self.put_cache(file, exif)
     file.metadata = exif
+    file.exif_width = self.get_json_key(exif, ['ImageLength'])
+    file.exif_height = self.get_json_key(exif, ['ImageWidth'])
+    ap = self.get_json_key(exif, ['ApertureValue'])
+    # ap is a tuple, store as a truncated double to 1 decimal place
+    try:
+      raw_ap = ap[0]/float(ap[1])
+      truncated_ap = self.trunc(raw_ap, 1)
+      file.exif_aperture = truncated_ap
+    except:
+      pass
+    file.exif_aperture = self.get_json_key(exif, ['Aperture'])
+    file.exif_date = self.get_json_key(exif, ['DateTimeOriginal'])
+    file.exif_iso = self.get_json_key(exif, ['ISOSpeedRatings'])
+    fl = self.get_json_key(exif, ['FocalLength'])
+    # fl is a tuple, store as double truncated to 1 decimal place
+    try:
+      file.exif_focal_length = self.trunc(fl[0]/float(fl[1]), 1)
+    except:
+      pass
+    et = self.get_json_key(exif, ['ExposureTime'])
+    # et is a tuple, store as a fraction string
+    try:
+      file.exif_exposure = '%d/%d' % (et[0], et[1])
+    except:
+      pass
+    file.exif_camera = self.get_json_key(exif, ['Model'])
+
+  def trunc(self, num, digits):
+   sp = str(num).split('.')
+   return '.'.join([sp[0], sp[1][:digits]])
 
   def check_cache(self, file):
     file_key = str(file.originalPath)

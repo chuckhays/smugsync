@@ -127,7 +127,7 @@ class SmugMugConnector(ConnectorBase):
         if album_uri is None:
           print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
           return
-        cached_album_images_response = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000'}, headers={'Accept': 'application/json'})
+        cached_album_images_response = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000', '_expand' : 'ImageMetadata', '_expandmethod' : 'inline'}, headers={'Accept': 'application/json'})
         cached_album_images = cached_album_images_response.json()
         with self.cache_lock:
           self.put_cache(album_uri, album_last_updated_string, album, cached_album_images_response.text)
@@ -144,6 +144,22 @@ class SmugMugConnector(ConnectorBase):
         file.size = self.get_json_key(image, ['ArchivedSize'])
         _, file_extension = os.path.splitext(file.name)
         file.type = File.type_from_extension(file_extension)
+        metadata = self.get_json_key(image, ['Uris', 'ImageMetadata', 'ImageMetadata'])
+        file.exif_width = self.get_json_key(image, ['OriginalWidth'])
+        file.exif_height = self.get_json_key(image, ['OriginalHeight'])
+
+        if metadata is not None:
+          file.exif_aperture = self.get_json_key(metadata, ['Aperture'])
+          file.exif_date = self.get_json_key(metadata, ['DateTimeCreated'])
+          file.exif_iso = self.get_json_key(metadata, ['ISO'])
+          # fl is a string, strip 'mm', convert to a double
+          try:
+            file.exif_focal_length = float(self.get_json_key(metadata, ['FocalLength']).replace('mm', ''))
+          except:
+            pass
+          file.exif_exposure = self.get_json_key(metadata, ['Exposure'])
+          file.exif_camera = self.get_json_key(metadata, ['Model'])
+
         with self.output_lock:
           self.add_file_to_hash(file, self.images)
       self.increment_threadcount()
