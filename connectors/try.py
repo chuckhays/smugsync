@@ -2,19 +2,25 @@ import filesystem
 import smugmug
 import connectorbase
 import json
+from PIL import Image, ExifTags
+import time
 
 
 def main():
-  fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: 'e:\\' } )
+  start = time.clock()
+  fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: 'd:\\pics' } )
   fs_files = fs.enumerate_objects()
-  #for f in files:
-  #  print f
+  end_fs = time.clock()
+  print 'Finished FS, time elapsed: %f' % (end_fs - start)
+  #for fs_key in fs_files:
+  #    print f.originalPath
 
   config_data = {}
-  config_data[smugmug.APP_NAME_KEY] = 'XXXX'
-  config_data[smugmug.API_KEY_KEY] = 'XXXX'
-  config_data[smugmug.OAUTH_SECRET_KEY] = 'XXXX'
-  config_data[connectorbase.ROOT_KEY] = '/'
+  try:
+    with open('smugmug.keys', 'r') as keys_file:
+      config_data = json.load(keys_file)
+  except Exception as e:
+    pass
   sm = smugmug.SmugMugConnector(config_data)
 
 
