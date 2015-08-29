@@ -147,10 +147,11 @@ class SmugMugConnector(ConnectorBase):
         metadata = self.get_json_key(image, ['Uris', 'ImageMetadata', 'ImageMetadata'])
         file.exif_width = self.get_json_key(image, ['OriginalWidth'])
         file.exif_height = self.get_json_key(image, ['OriginalHeight'])
-
+        file.file_type = file.TYPE_SMUGMUG
         if metadata is not None:
+          file.metadata = metadata
           file.exif_aperture = self.get_json_key(metadata, ['Aperture'])
-          file.exif_date = self.get_json_key(metadata, ['DateTimeCreated'])
+          file.exif_date = self.get_json_key(metadata, ['DateTime']) or self.get_json_key(metadata, ['DateTimeCreated']) or self.get_json_key(metadata, ['DateTimeOriginal'])
           file.exif_iso = self.get_json_key(metadata, ['ISO'])
           # fl is a string, strip 'mm', convert to a double
           try:
@@ -158,7 +159,7 @@ class SmugMugConnector(ConnectorBase):
           except:
             pass
           file.exif_exposure = self.get_json_key(metadata, ['Exposure'])
-          file.exif_camera = self.get_json_key(metadata, ['Model'])
+          file.exif_camera = self.get_json_key(metadata, ['Camera']) or self.get_json_key(metadata, ['Model'])
 
         with self.output_lock:
           self.add_file_to_hash(file, self.images)

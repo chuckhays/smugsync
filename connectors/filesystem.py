@@ -44,6 +44,7 @@ class FileSystemConnector(ConnectorBase):
     _, fileExtension = os.path.splitext(file.originalPath)
     file.type = File.type_from_extension(fileExtension)
     self.update_exif_metadata(file)
+    file.file_type = file.TYPE_FILESYSTEM
     return file
 
   def update_exif_metadata(self, file):
@@ -65,8 +66,8 @@ class FileSystemConnector(ConnectorBase):
         exif = {}
       self.put_cache(file, exif)
     file.metadata = exif
-    file.exif_width = self.get_json_key(exif, ['ImageLength'])
-    file.exif_height = self.get_json_key(exif, ['ImageWidth'])
+    file.exif_width = self.get_json_key(exif, ['ImageWidth']) or self.get_json_key(exif, ['ExifImageWidth'])
+    file.exif_height = self.get_json_key(exif, ['ImageLength']) or self.get_json_key(exif, ['ExifImageHeight'])
     ap = self.get_json_key(exif, ['ApertureValue'])
     # ap is a tuple, store as a truncated double to 1 decimal place
     try:

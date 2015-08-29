@@ -4,6 +4,9 @@ TYPE_IMAGE = "image"
 TYPE_VIDEO = "video"
 TYPE_OTHER = "other"
 
+TYPE_SMUGMUG = "smugmug"
+TYPE_FILESYSTEM = "filesystem"
+
 TYPE_DICTIONARY = {
   'png' : TYPE_IMAGE,
   'jpg' : TYPE_IMAGE,
@@ -25,6 +28,7 @@ class File(object):
   size = None
   originalPath = None
   metadata = None
+  file_type = None
 
   exif_width = None
   exif_height = None
