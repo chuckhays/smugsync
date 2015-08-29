@@ -29,11 +29,19 @@ def main():
     if file is None or file_array is None:
       return None
     for f in file_array:
-      if (f.name == file.name and
-          f.size == file.size):
-        return f
+      if f.name == file.name:
+        # if sizes match, this is a match
+        if f.size == file.size and f.size is not None:
+          return f
+        # if sizes are close, check exif data
+        size_diff = abs(file.size - f.size) / f.size
+        if size_diff > 0.05:
+          continue
+        # check height/width, camera model
+        if f.exif_height == file.exif_height and f.exif_height is not None and f.exif_width == file.exif_width and f.exif_height is not None:
+          if f.exif_camera == file.exif_camera and f.exif_camera is not None:
+            return f
     return None
-
 
   sm_files = sm.enumerate_objects()
   #for f in files:
