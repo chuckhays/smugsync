@@ -47,6 +47,7 @@ def do_files_match(file1, file2):
     # check height/width, camera model
     if file1.exif_height == file2.exif_height and file1.exif_height is not None and file1.exif_width == file2.exif_width and file1.exif_height is not None:
       #if file1.exif_camera == file2.exif_camera and file1.exif_camera is not None:
+      if file1.exif_date_parsed is not None and file1.exif_date_parsed == file2.exif_date_parsed:
         return True
   return False
 
@@ -78,6 +79,14 @@ def main():
   #for f in files:
  #   print json.dumps(f, indent = 2)
 
+  sm_count = 0
+  fs_count = 0
+  for sm_k in sm_files:
+    sm_count += len(sm_files[sm_k])
+  for fs_k in fs_files:
+    fs_count += len(fs_files[fs_k])
+
+  print 'SM total: %d  FS total: %d' % (sm_count, fs_count)
   print 'Starting file matching'
   start = time.clock()
   both =[]
@@ -124,7 +133,7 @@ def main():
         sm.append(set)
       else:
         fs.append(set)
-
+  print 'Done: %f sec' % (time.clock()-start)
   print 'Both: %d SM: %d FS: %d fuzzy: %d' % (len(both), len(sm), len(fs), fuzzy)
 
 

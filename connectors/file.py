@@ -1,4 +1,6 @@
 import json
+from dateutil import parser
+from datetime import datetime
 
 TYPE_IMAGE = "image"
 TYPE_VIDEO = "video"
@@ -33,6 +35,7 @@ class File(object):
   exif_width = None
   exif_height = None
   exif_date = None
+  exif_date_parsed = None
   exif_iso = None
   exif_focal_length = None
   exif_exposure = None
@@ -41,6 +44,26 @@ class File(object):
 
   def __str__(self):
     return (self.name + ' : ' + self.originalPath + ' size:(%d)') % self.size
+
+  def convert_time_string(self, time_string):
+    if time_string is None:
+      return None
+    # Example format: u'2013:02:14 12:31:58'
+    try:
+      if time_string == u'2013:02:14 12:31:58':
+        pass
+      t = datetime.strptime(time_string, '%Y:%m:%d %H:%M:%S')
+      if t is not None:
+        return t
+    except Exception as e:
+      pass
+    try:
+      t = parser.parse(time_string)
+      if t is not None:
+        return t
+    except Exception as e:
+      pass
+    return None
 
   @classmethod
   def type_from_extension(cls, extension):

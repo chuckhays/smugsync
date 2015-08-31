@@ -153,6 +153,7 @@ class SmugMugConnector(ConnectorBase):
           file.metadata = metadata
           file.exif_aperture = self.get_json_key(metadata, ['Aperture'])
           file.exif_date = self.get_json_key(metadata, ['DateTime']) or self.get_json_key(metadata, ['DateTimeCreated']) or self.get_json_key(metadata, ['DateTimeOriginal'])
+          file.exif_date_parsed = file.convert_time_string(file.exif_date)
           file.exif_iso = self.get_json_key(metadata, ['ISO'])
           # fl is a string, strip 'mm', convert to a double
           try:

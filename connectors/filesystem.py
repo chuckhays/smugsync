@@ -79,6 +79,7 @@ class FileSystemConnector(ConnectorBase):
       pass
     file.exif_aperture = self.get_json_key(exif, ['Aperture'])
     file.exif_date = self.get_json_key(exif, ['DateTimeOriginal'])
+    file.exif_date_parsed = file.convert_time_string(file.exif_date)
     file.exif_iso = self.get_json_key(exif, ['ISOSpeedRatings'])
     fl = self.get_json_key(exif, ['FocalLength'])
     # fl is a tuple, store as double truncated to 1 decimal place
