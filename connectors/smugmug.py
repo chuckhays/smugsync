@@ -2,6 +2,7 @@ import datetime
 import os
 from connectorbase import ConnectorBase
 from file import File, FileEncoder
+import file as fileConstants
 import sys
 import json
 import time
@@ -147,7 +148,7 @@ class SmugMugConnector(ConnectorBase):
         metadata = self.get_json_key(image, ['Uris', 'ImageMetadata', 'ImageMetadata'])
         file.exif_width = self.get_json_key(image, ['OriginalWidth'])
         file.exif_height = self.get_json_key(image, ['OriginalHeight'])
-        file.file_type = file.TYPE_SMUGMUG
+        file.file_type = fileConstants.TYPE_SMUGMUG
         if metadata is not None:
           file.metadata = metadata
           file.exif_aperture = self.get_json_key(metadata, ['Aperture'])

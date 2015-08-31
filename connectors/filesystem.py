@@ -2,6 +2,7 @@ import datetime
 import os
 from connectorbase import ConnectorBase
 from file import File
+import file as fileConstants
 from PIL import Image, ExifTags
 import shelve
 import json
@@ -44,7 +45,7 @@ class FileSystemConnector(ConnectorBase):
     _, fileExtension = os.path.splitext(file.originalPath)
     file.type = File.type_from_extension(fileExtension)
     self.update_exif_metadata(file)
-    file.file_type = file.TYPE_FILESYSTEM
+    file.file_type = fileConstants.TYPE_FILESYSTEM
     return file
 
   def update_exif_metadata(self, file):

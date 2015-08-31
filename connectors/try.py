@@ -5,9 +5,50 @@ import json
 from PIL import Image, ExifTags
 import time
 from clint.textui import progress
+from file import File
+import file as fileConstants
 
 from file import FileEncoder
 import pprint
+
+def match_sets(file_array):
+  if file_array is None:
+    return []
+
+  result_sets = []
+  files = list(file_array)
+  while len(files) > 0:
+    first_file = files[0]
+    rest_files = files[1:]
+    matching_files = match(first_file, rest_files)
+    matching_files.append(first_file)
+    result_sets.append(matching_files)
+    for f in matching_files:
+      files.remove(f)
+  return result_sets
+
+def match(file, files):
+  if files is None:
+    return []
+  matching_files = [f for f in files if do_files_match(file, f)]
+  return matching_files
+
+def do_files_match(file1, file2):
+  if file1 is None or file2 is None:
+    return False
+  if file1.name == file2.name:
+    # if sizes match, this is a match
+    if file1.size == file2.size and file1.size is not None:
+      return True
+    # if sizes are close, check exif data
+    size_diff = abs(file1.size - file2.size) / float(file2.size)
+    if size_diff > 0.05:
+      return False
+    # check height/width, camera model
+    if file1.exif_height == file2.exif_height and file1.exif_height is not None and file1.exif_width == file2.exif_width and file1.exif_height is not None:
+      #if file1.exif_camera == file2.exif_camera and file1.exif_camera is not None:
+        return True
+  return False
 
 def main():
   start = time.clock()
@@ -15,8 +56,6 @@ def main():
   fs_files = fs.enumerate_objects()
   end_fs = time.clock()
   print 'Finished FS, time elapsed: %f' % (end_fs - start)
-  #for fs_key in fs_files:
-  #    print f.originalPath
 
   start = time.clock()
   config_data = {}
@@ -35,32 +74,6 @@ def main():
 
 
 
-  def match(file, file_array):
-    if file is None or file_array is None:
-      return (None, False)
-    for f in file_array:
-      if f.name == file.name:
-        # if sizes match, this is a match
-        if f.size == file.size and f.size is not None:
-          return (f, False)
-        # if sizes are close, check exif data
-        size_diff = abs(file.size - f.size) / f.size
-        if size_diff > 0.05:
-          continue
-        # check height/width, camera model
-        if f.exif_height == file.exif_height and f.exif_height is not None and f.exif_width == file.exif_width and f.exif_height is not None:
-          if f.exif_camera == file.exif_camera and f.exif_camera is not None:
-            return (f, True)
-    if file.name == 'IMG_3329.JPG':
-      print '#################################################'
-      print '#################################################'
-      pp = pprint.PrettyPrinter(indent=2)
-      pp.pprint(file.__dict__)
-      for f in file_array:
-        print '@@@@@@@@@@@@@@@@@@@@@@@@@'
-        pp.pprint(f.__dict__)
-    return (None, False)
-
 
   #for f in files:
  #   print json.dumps(f, indent = 2)
@@ -72,35 +85,51 @@ def main():
   fs = []
   fuzzy = 0
 
+  combined_files = {}
 
-  print 'matching files'
-  for fs_file_key in progress.bar(fs_files):
-    fs_file_array = fs_files[fs_file_key]
-    sm_file_array = []
-    if fs_file_key in sm_files:
-      sm_file_array = sm_files[fs_file_key]
+  for fs_file_key in fs_files:
+    try:
+      # combine all the files into a single list
+      files_array = []
+      fs_file_array = fs_files[fs_file_key]
+      if fs_file_array is not None:
+        files_array += fs_file_array
+      sm_file_array = []
+      if fs_file_key in sm_files:
+        sm_file_array = sm_files[fs_file_key]
+        sm_files.pop(fs_file_key)
+      if sm_file_array is not None:
+        files_array += sm_file_array
+      combined_files[fs_file_key] = files_array
+    except Exception as e:
+      print 'Exception on ' + fs_file_key + ' :: ' + e.message
 
-    for fs_file in fs_file_array:
-      # Try to find a match in sm_files_array
-      matched_file, fuzzy = match(fs_file, sm_file_array)
-      if fuzzy:
-        fuzzy += 1
-      if (matched_file is not None):
-        # Matched, put file in both and remove from both.
-        both.append(fs_file)
-        fs_file_array.remove(fs_file)
-        sm_file_array.remove(matched_file)
-      else:
-        # Put in fs only and remove from fs_files.
-        fs.append(fs_file)
-        fs_file_array.remove(fs_file)
   for sm_file_key in sm_files:
-    sm_file_array = sm_files[sm_file_key]
-    # Add to sm.
-    sm.extend(sm_file_array)
+    combined_files[sm_file_key] = sm_files[sm_file_key]
+
+  for file_key in combined_files:
+    files_array = combined_files[file_key]
+    matched_sets = match_sets(files_array)
+    for set in matched_sets:
+      has_sm = False
+      has_fs = False
+      for f in set:
+        if f.file_type == fileConstants.TYPE_SMUGMUG:
+          has_sm = True
+        if f.file_type == fileConstants.TYPE_FILESYSTEM:
+          has_fs = True
+      if has_sm and has_fs:
+        both.append(set)
+      elif has_sm:
+        sm.append(set)
+      else:
+        fs.append(set)
 
   print 'Both: %d SM: %d FS: %d fuzzy: %d' % (len(both), len(sm), len(fs), fuzzy)
 
 
 if __name__ == "__main__":
+  try:
     main()
+  except Exception as e:
+    print 'Exception: ' + e.message
