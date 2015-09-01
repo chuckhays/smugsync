@@ -45,7 +45,12 @@ def do_files_match(file1, file2):
     if size_diff > 0.05:
       return False
     # check height/width, camera model
-    if file1.exif_height == file2.exif_height and file1.exif_height is not None and file1.exif_width == file2.exif_width and file1.exif_height is not None:
+    if file1.exif_height is None or file1.exif_width is None:
+      return False
+    sizes_match = file1.exif_height == file2.exif_height and file1.exif_width == file2.exif_width
+    if not sizes_match:
+      sizes_match = file1.exif_height == file2.exif_width and file1.exif_width == file2.exif_height
+    if sizes_match:
       #if file1.exif_camera == file2.exif_camera and file1.exif_camera is not None:
       if file1.exif_date_parsed is not None and file1.exif_date_parsed == file2.exif_date_parsed:
         return True
