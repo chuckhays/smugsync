@@ -5,6 +5,7 @@ from datetime import datetime
 TYPE_IMAGE = "image"
 TYPE_VIDEO = "video"
 TYPE_OTHER = "other"
+TYPE_UNKNOWN = "unknown"
 
 TYPE_SMUGMUG = "smugmug"
 TYPE_FILESYSTEM = "filesystem"
@@ -12,13 +13,22 @@ TYPE_FILESYSTEM = "filesystem"
 TYPE_DICTIONARY = {
   'png' : TYPE_IMAGE,
   'jpg' : TYPE_IMAGE,
-  'jpeg' : TYPE_IMAGE,
+  'jpeg': TYPE_IMAGE,
   'bmp' : TYPE_IMAGE,
+  'gif' : TYPE_IMAGE,
+  'tif' : TYPE_IMAGE,
+  'cr2' : TYPE_IMAGE,
   'avi' : TYPE_VIDEO,
   'mpg' : TYPE_VIDEO,
   'mp4' : TYPE_VIDEO,
   'mov' : TYPE_VIDEO,
   'mts' : TYPE_VIDEO,
+  '3gp' : TYPE_VIDEO,
+  'm2t' : TYPE_VIDEO,
+  'db'  : TYPE_OTHER,
+  'ini' : TYPE_OTHER,
+  'sh'  : TYPE_OTHER,
+  'xmp' : TYPE_OTHER,
 }
 
 class File(object):
@@ -73,7 +83,7 @@ class File(object):
     if extension in TYPE_DICTIONARY:
       return TYPE_DICTIONARY[extension]
     # What extension is this?
-    return TYPE_OTHER
+    return TYPE_UNKNOWN
 
 
 class FileEncoder(json.JSONEncoder):

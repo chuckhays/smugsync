@@ -28,8 +28,9 @@ class FileSystemConnector(ConnectorBase):
     #file_pairs = []
     for dir, dirs, files in os.walk(self.root):
       for f in files:
-        fileObject = self.create_file(dir, f)
-        self.add_file_to_hash(fileObject, results)
+        file_object = self.create_file(dir, f)
+        if file_object is not None:
+          self.add_file_to_hash(file_object, results)
     return results
 
   def create_file(self, filePath, fileName):
@@ -44,6 +45,8 @@ class FileSystemConnector(ConnectorBase):
     file.size = os.path.getsize(file.originalPath)
     _, fileExtension = os.path.splitext(file.originalPath)
     file.type = File.type_from_extension(fileExtension)
+    if file.type == fileConstants.TYPE_OTHER or file.type == fileConstants.TYPE_UNKNOWN:
+      return None
     self.update_exif_metadata(file)
     file.file_type = fileConstants.TYPE_FILESYSTEM
     return file

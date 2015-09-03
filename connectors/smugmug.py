@@ -145,6 +145,8 @@ class SmugMugConnector(ConnectorBase):
         file.size = self.get_json_key(image, ['ArchivedSize'])
         _, file_extension = os.path.splitext(file.name)
         file.type = File.type_from_extension(file_extension)
+        if file.type == fileConstants.TYPE_OTHER or file.type == fileConstants.TYPE_UNKNOWN:
+          pass
         metadata = self.get_json_key(image, ['Uris', 'ImageMetadata', 'ImageMetadata'])
         file.exif_width = self.get_json_key(image, ['OriginalWidth'])
         file.exif_height = self.get_json_key(image, ['OriginalHeight'])
@@ -176,7 +178,7 @@ class SmugMugConnector(ConnectorBase):
       print 'Could not find URI for user\'s albums'
       return self.images
     # Request all albums.
-    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri,params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
+    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri, params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
 
     albums_array = self.get_json_key(userAlbums, ['Response', 'Album'])
     if albums_array is None:
