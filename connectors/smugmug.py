@@ -143,6 +143,7 @@ class SmugMugConnector(ConnectorBase):
         file.relativePath = os.path.normpath(self.get_json_key(album, ['UrlPath']))
         file.originalPath = os.path.normpath(os.path.join(file.relativePath, file.name))
         file.size = self.get_json_key(image, ['ArchivedSize'])
+        file.md5 = self.get_json_key(image, ['ArchivedMD5'])
         _, file_extension = os.path.splitext(file.name)
         file.type = File.type_from_extension(file_extension)
         if file.type == fileConstants.TYPE_OTHER or file.type == fileConstants.TYPE_UNKNOWN:

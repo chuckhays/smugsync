@@ -1,6 +1,7 @@
 import json
 from dateutil import parser
 from datetime import datetime
+import hashlib
 
 TYPE_IMAGE = "image"
 TYPE_VIDEO = "video"
@@ -41,6 +42,7 @@ class File(object):
   originalPath = None
   metadata = None
   file_type = None
+  md5 = None
 
   exif_width = None
   exif_height = None
@@ -54,6 +56,14 @@ class File(object):
 
   def __str__(self):
     return (self.name + ' : ' + self.originalPath + ' size:(%d)') % self.size
+
+  def get_filesystem_md5(self):
+    if self.md5 is not None:
+      return self.md5
+    with open(self.originalPath, 'r+b') as file_to_check:
+      data = file_to_check.read()
+      self.md5 = hashlib.md5(data).hexdigest()
+      return self.md5
 
   def convert_time_string(self, time_string):
     if time_string is None:

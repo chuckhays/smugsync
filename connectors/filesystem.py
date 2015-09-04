@@ -11,12 +11,15 @@ from clint.textui import progress
 from dateutil import parser
 
 CACHE_FILE_NAME = 'filesystem.cache'
+SAVE_EVERY = 5000
 
 class FileSystemConnector(ConnectorBase):
 
   def __init__(self, config_data):
     super(FileSystemConnector, self).__init__(config_data)
     self.shelve = None
+    self.count = 0
+    self.bar = progress.Bar(label="progress to save", expected_size=SAVE_EVERY)
 
   def authenticate(self, config_file):
     return True
@@ -31,6 +34,7 @@ class FileSystemConnector(ConnectorBase):
         file_object = self.create_file(dir, f)
         if file_object is not None:
           self.add_file_to_hash(file_object, results)
+    self.save_cache()
     return results
 
   def create_file(self, filePath, fileName):
@@ -53,6 +57,7 @@ class FileSystemConnector(ConnectorBase):
 
   def update_exif_metadata(self, file):
     # Check cached exif data, if not fetch exif.
+    exif = None
     try:
       exif = self.check_cache(file)
     except Exception as e:
@@ -66,10 +71,12 @@ class FileSystemConnector(ConnectorBase):
           for k, v in img._getexif().items()
           if k in ExifTags.TAGS
         }
+        exif['md5'] = file.get_filesystem_md5()
       except:
         exif = {}
       self.put_cache(file, exif)
     file.metadata = exif
+    file.md5 = self.get_json_key(exif, ['md5'])
     file.exif_width = self.get_json_key(exif, ['ImageWidth']) or self.get_json_key(exif, ['ExifImageWidth'])
     file.exif_height = self.get_json_key(exif, ['ImageLength']) or self.get_json_key(exif, ['ExifImageHeight'])
     ap = self.get_json_key(exif, ['ApertureValue'])
@@ -124,7 +131,11 @@ class FileSystemConnector(ConnectorBase):
       'exif' : exif,
     }
     self.shelve[file_key] = data
-    self.save_cache()
+    self.count += 1
+    self.bar.show(self.count)
+    if self.count % 5000 == 0:
+      self.count = 0
+      self.save_cache()
 
   def init_cache(self):
     if self.shelve is None:

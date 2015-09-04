@@ -39,7 +39,18 @@ def do_files_match(file1, file2):
   if file1.name == file2.name:
     # if sizes match, this is a match
     if file1.size == file2.size and file1.size is not None:
-      return True
+      md51 = None
+      if file1.file_type == fileConstants.TYPE_FILESYSTEM:
+        md51 = file1.get_filesystem_md5()
+      else:
+        md51 = file1.md5
+      md52 = None
+      if file2.file_type == fileConstants.TYPE_FILESYSTEM:
+        md52 = file2.get_filesystem_md5()
+      else:
+        md52 = file2.md5
+      if md51 is not None and md51 == md52:
+        return True
     # if sizes are close, check exif data
     size_diff = abs(file1.size - file2.size) / float(file2.size)
     if size_diff > 0.05:
@@ -53,7 +64,7 @@ def do_files_match(file1, file2):
     if sizes_match:
       #if file1.exif_camera == file2.exif_camera and file1.exif_camera is not None:
       if file1.exif_date_parsed is not None and file1.exif_date_parsed == file2.exif_date_parsed:
-        return True
+        pass #return True
   return False
 
 def main():
@@ -77,9 +88,6 @@ def main():
   print 'Finished SM, time elapsed: %f' % (end_sm - start)
   print '\r\n'
   print '\r\n'
-
-
-
 
   #for f in files:
  #   print json.dumps(f, indent = 2)
@@ -121,9 +129,11 @@ def main():
   for sm_file_key in sm_files:
     combined_files[sm_file_key] = sm_files[sm_file_key]
 
+  #csv = open('files.csv', 'w')
   for file_key in combined_files:
     files_array = combined_files[file_key]
     matched_sets = match_sets(files_array)
+    all_both = True
     for set in matched_sets:
       has_sm = False
       has_fs = False
@@ -136,10 +146,23 @@ def main():
         both.append(set)
       elif has_sm:
         sm.append(set)
+        all_both = False
       else:
         fs.append(set)
+        all_both = False
+    #if not all_both:
+    #  for set in matched_sets:
+    #    csv.write(file_key)
+    #    csv.write(',')
+    #    for csv_file in set:
+    #      csv.write('%s,%d,' % (csv_file.originalPath, csv_file.size))
+    #    csv.write('\r\n')
+  #csv.close()
   print 'Done: %f sec' % (time.clock()-start)
   print 'Both: %d SM: %d FS: %d fuzzy: %d' % (len(both), len(sm), len(fs), fuzzy)
+
+  # Mirror smugmug to local path
+  # If we can find a matched pair, we have an md5sum identical file we can use.
 
 
 if __name__ == "__main__":
