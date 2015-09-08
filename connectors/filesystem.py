@@ -13,6 +13,7 @@ from dateutil import parser
 CACHE_FILE_NAME = 'filesystem.cache'
 SAVE_EVERY = 5000
 
+
 class FileSystemConnector(ConnectorBase):
 
   def __init__(self, config_data):
@@ -20,6 +21,7 @@ class FileSystemConnector(ConnectorBase):
     self.shelve = None
     self.count = 0
     self.bar = progress.Bar(label="progress to save", expected_size=SAVE_EVERY)
+    self.changed = False
 
   def authenticate(self, config_file):
     return True
@@ -30,11 +32,14 @@ class FileSystemConnector(ConnectorBase):
     # Recursively list all of the files under root.
     #file_pairs = []
     for dir, dirs, files in os.walk(self.root):
+      if 'e:\\ignore' in dir:
+        continue
       for f in files:
         file_object = self.create_file(dir, f)
         if file_object is not None:
           self.add_file_to_hash(file_object, results)
-    self.save_cache()
+    if self.changed:
+      self.save_cache()
     return results
 
   def create_file(self, filePath, fileName):
@@ -75,6 +80,12 @@ class FileSystemConnector(ConnectorBase):
       except:
         exif = {}
       self.put_cache(file, exif)
+
+    # If we don't have md5 (maybe missing exif data), store it.
+    if 'md5' not in exif:
+      exif['md5'] = file.get_filesystem_md5()
+      self.put_cache(file, exif)
+
     file.metadata = exif
     file.md5 = self.get_json_key(exif, ['md5'])
     file.exif_width = self.get_json_key(exif, ['ImageWidth']) or self.get_json_key(exif, ['ExifImageWidth'])
@@ -125,6 +136,7 @@ class FileSystemConnector(ConnectorBase):
     return self.get_json_key(data, ['exif'])
 
   def put_cache(self, file, exif):
+    self.changed = True
     file_key = str(file.originalPath)
     data = {
       'lastupdated' : file.mTime,

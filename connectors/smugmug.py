@@ -7,6 +7,7 @@ import sys
 import json
 import time
 import threading
+import shutil
 
 import shelve
 
@@ -58,6 +59,23 @@ class SmugMugConnector(ConnectorBase):
     self.thread_count_lock = threading.Lock()
     self.cache_lock = threading.Lock()
     self.output_lock = threading.Lock()
+
+  def download(self, file, dst):
+    src = file.source
+    if src is None:
+      print 'Error downloading file: ' + file.originalPath
+      return
+    try:
+      print 'Downloading: (' + file.name + ') ' + src
+      r = self.session.get(src, stream=True)
+      if r.status_code == 200:
+        with open(dst, 'wb') as f:
+          r.raw.decode_content = True
+          shutil.copyfileobj(r.raw, f)
+      else:
+        print ('Response code %d for : ' % r.status_code) + src
+    except Exception as e:
+      print 'Exception downloading file at: ' + src + ' :: ' + e
 
   def authenticate(self):
     filename = self.data_file
@@ -140,8 +158,13 @@ class SmugMugConnector(ConnectorBase):
       for image in images_array:
         file = File()
         file.name = self.get_json_key(image, ['FileName'])
+        is_video = self.get_json_key(image, ['IsVideo'])
+        if is_video == True:
+          print 'Video: ' + file.name
+          continue
         file.relativePath = os.path.normpath(self.get_json_key(album, ['UrlPath']))
         file.originalPath = os.path.normpath(os.path.join(file.relativePath, file.name))
+        file.source = self.get_json_key(image, ['ArchivedUri'])
         file.size = self.get_json_key(image, ['ArchivedSize'])
         file.md5 = self.get_json_key(image, ['ArchivedMD5'])
         _, file_extension = os.path.splitext(file.name)

@@ -43,6 +43,7 @@ class File(object):
   metadata = None
   file_type = None
   md5 = None
+  source = None
 
   exif_width = None
   exif_height = None

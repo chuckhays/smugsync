@@ -7,9 +7,14 @@ import time
 from clint.textui import progress
 from file import File
 import file as fileConstants
+import os
+import shutil
+import traceback
 
 from file import FileEncoder
 import pprint
+
+DEST_PATH = 'e:\\ignore\\mirror\\'
 
 def match_sets(file_array):
   if file_array is None:
@@ -67,6 +72,34 @@ def do_files_match(file1, file2):
         pass #return True
   return False
 
+def mirror(smc, smugmug, filesystem):
+  # Make sure the destination path exists
+  path = smugmug.relativePath
+  if path is None:
+    print 'Error: no relative path for file: ' + file.originalPath
+    return
+  path = path.lstrip('\\')
+  path = os.path.normpath(os.path.join(DEST_PATH, path))
+  dst = os.path.join(path, smugmug.name)
+
+  # Check if file is already there, skip it if it is.
+  if os.path.isfile(dst):
+    return
+
+  try:
+    os.makedirs(path)
+  except OSError:
+    if not os.path.isdir(path):
+        raise
+
+
+  # If we have a fs file, copy from there, if not, fetch from smugmug.
+  if filesystem:
+    src = filesystem.originalPath
+    shutil.copy2(src, dst)
+  else:
+    smc.download(smugmug, dst)
+
 def main():
   start = time.clock()
   fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: 'e:\\' } )
@@ -81,9 +114,9 @@ def main():
       config_data = json.load(keys_file)
   except Exception as e:
     pass
-  sm = smugmug.SmugMugConnector(config_data)
-  sm.authenticate()
-  sm_files = sm.enumerate_objects()
+  smc = smugmug.SmugMugConnector(config_data)
+  smc.authenticate()
+  sm_files = smc.enumerate_objects()
   end_sm = time.clock()
   print 'Finished SM, time elapsed: %f' % (end_sm - start)
   print '\r\n'
@@ -130,22 +163,28 @@ def main():
     combined_files[sm_file_key] = sm_files[sm_file_key]
 
   #csv = open('files.csv', 'w')
-  for file_key in combined_files:
+  for file_key in progress.bar(combined_files):
     files_array = combined_files[file_key]
     matched_sets = match_sets(files_array)
     all_both = True
     for set in matched_sets:
       has_sm = False
       has_fs = False
+      sm_file = None
+      fs_file = None
       for f in set:
         if f.file_type == fileConstants.TYPE_SMUGMUG:
+          sm_file = sm_file if not sm_file is None else f
           has_sm = True
         if f.file_type == fileConstants.TYPE_FILESYSTEM:
+          fs_file = fs_file if not fs_file is None else f
           has_fs = True
       if has_sm and has_fs:
         both.append(set)
+        mirror(smc, sm_file, fs_file)
       elif has_sm:
         sm.append(set)
+        mirror(smc, sm_file, None)
         all_both = False
       else:
         fs.append(set)
@@ -170,3 +209,5 @@ if __name__ == "__main__":
     main()
   except Exception as e:
     print 'Exception: ' + e.message
+    tb = traceback.format_exc()
+    print tb
