@@ -10,11 +10,10 @@ import file as fileConstants
 import os
 import shutil
 import traceback
+import ConfigParser
 
 from file import FileEncoder
 import pprint
-
-DEST_PATH = 'e:\\ignore\\mirror\\'
 
 def match_sets(file_array):
   if file_array is None:
@@ -72,14 +71,14 @@ def do_files_match(file1, file2):
         pass #return True
   return False
 
-def mirror(smc, smugmug, filesystem):
+def mirror(smc, smugmug, fs_folder, fs_file):
   # Make sure the destination path exists
   path = smugmug.relativePath
   if path is None:
     print 'Error: no relative path for file: ' + file.originalPath
     return
   path = path.lstrip('\\')
-  path = os.path.normpath(os.path.join(DEST_PATH, path))
+  path = os.path.normpath(os.path.join(fs_folder, path))
   dst = os.path.join(path, smugmug.name)
 
   # Check if file is already there, skip it if it is.
@@ -94,15 +93,20 @@ def mirror(smc, smugmug, filesystem):
 
 
   # If we have a fs file, copy from there, if not, fetch from smugmug.
-  if filesystem:
-    src = filesystem.originalPath
+  if fs_file:
+    src = fs_file.originalPath
     shutil.copy2(src, dst)
   else:
     smc.download(smugmug, dst)
 
 def main():
   start = time.clock()
-  fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: 'e:\\' } )
+
+  config = ConfigParser.SafeConfigParser({'dest_path': 'e:\\'})
+  config.read("smugsync.cfg")
+  dest_path = config.get('smugsync', 'dest_path')
+
+  fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: dest_path } )
   fs_files = fs.enumerate_objects()
   end_fs = time.clock()
   print 'Finished FS, time elapsed: %f' % (end_fs - start)
@@ -181,10 +185,10 @@ def main():
           has_fs = True
       if has_sm and has_fs:
         both.append(set)
-        mirror(smc, sm_file, fs_file)
+        mirror(smc, sm_file, dest_path, fs_file)
       elif has_sm:
         sm.append(set)
-        mirror(smc, sm_file, None)
+        mirror(smc, sm_file, dest_path, None)
         all_both = False
       else:
         fs.append(set)

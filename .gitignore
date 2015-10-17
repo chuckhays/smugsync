@@ -5,6 +5,7 @@ smugmug.data
 smugmug.cache
 filesystem.cache
 *.keys
+smugsync.cfg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -28,15 +28,17 @@ class FileSystemConnector(ConnectorBase):
         
   def enumerate_objects(self):
     print 'Enumerating files in %s' % self.root
+    ignore_dir = os.path.join(self.root, 'ignore')
     results = {}
     # Recursively list all of the files under root.
     #file_pairs = []
     for dir, dirs, files in os.walk(self.root):
-      if 'e:\\ignore' in dir:
+      if ignore_dir in dir:
         continue
       for f in files:
         file_object = self.create_file(dir, f)
         if file_object is not None:
+          #print 'Got valid file: ' + f
           self.add_file_to_hash(file_object, results)
     if self.changed:
       self.save_cache()
