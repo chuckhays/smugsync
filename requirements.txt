@@ -4,4 +4,4 @@ nose
 pylint
 clint
 python-dateutil
-Pillow
+Pillow==2.9.0
