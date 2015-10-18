@@ -77,6 +77,14 @@ class SmugMugConnector(ConnectorBase):
     except Exception as e:
       print 'Exception downloading file at: ' + src + ' :: ' + e
 
+  def delete(self, file):
+    uri = file.uri
+    if not uri:
+      return
+    result = self.session.delete(API_ORIGIN + uri, headers={'Accept': 'application/json'})
+    json = result.json()
+
+
   def authenticate(self):
     filename = self.data_file
     if not filename:
@@ -147,9 +155,15 @@ class SmugMugConnector(ConnectorBase):
           print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
           return
         cached_album_images_response = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000', '_expand' : 'ImageMetadata', '_expandmethod' : 'inline'}, headers={'Accept': 'application/json'})
-        cached_album_images = cached_album_images_response.json()
-        with self.cache_lock:
-          self.put_cache(album_uri, album_last_updated_string, album, cached_album_images_response.text)
+        cached_album_images = {}
+        try:
+          cached_album_images = cached_album_images_response.json()
+          with self.cache_lock:
+            self.put_cache(album_uri, album_last_updated_string, album, cached_album_images_response.text)
+        except Exception as e:
+          print 'Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code
+          print 'Full response:' + cached_album_images_response.text
+
       images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
       if images_array is None:
         print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
@@ -160,11 +174,14 @@ class SmugMugConnector(ConnectorBase):
         file.name = self.get_json_key(image, ['FileName'])
         is_video = self.get_json_key(image, ['IsVideo'])
         if is_video == True:
-          print 'Video: ' + file.name
+          #print 'Video: ' + file.name
           continue
         file.relativePath = os.path.normpath(self.get_json_key(album, ['UrlPath']))
         file.originalPath = os.path.normpath(os.path.join(file.relativePath, file.name))
         file.source = self.get_json_key(image, ['ArchivedUri'])
+        file.thumbnail = self.get_json_key(image, ['ThumbnailUrl'])
+        file.weburi = self.get_json_key(image, ['WebUri'])
+        file.uri = self.get_json_key(image, ['Uri'])
         file.size = self.get_json_key(image, ['ArchivedSize'])
         file.md5 = self.get_json_key(image, ['ArchivedMD5'])
         _, file_extension = os.path.splitext(file.name)
@@ -202,7 +219,12 @@ class SmugMugConnector(ConnectorBase):
       print 'Could not find URI for user\'s albums'
       return self.images
     # Request all albums.
-    userAlbums = self.session.get(API_ORIGIN + userAlbumsUri, params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
+    userAlbums = {}
+    try:
+      userAlbums = self.session.get(API_ORIGIN + userAlbumsUri, params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
+    except Exception as e:
+      print 'Exception getting albums :: ' + e.message
+
 
     albums_array = self.get_json_key(userAlbums, ['Response', 'Album'])
     if albums_array is None:

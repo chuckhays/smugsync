@@ -69,7 +69,7 @@ class FileSystemConnector(ConnectorBase):
       exif = self.check_cache(file)
     except Exception as e:
       print 'Exception checking cached data for file: ' + file.originalPath + ' :: ' + e.message
-    if exif is None:
+    if exif is None or exif == {}:
       img = None
       try:
         img = Image.open(file.originalPath)
@@ -79,7 +79,8 @@ class FileSystemConnector(ConnectorBase):
           if k in ExifTags.TAGS
         }
         exif['md5'] = file.get_filesystem_md5()
-      except:
+      except Exception as e:
+        print 'Exception reading EXIF from: ' + file.originalPath + ' :: ' + e.message
         exif = {}
       self.put_cache(file, exif)
 
@@ -91,7 +92,11 @@ class FileSystemConnector(ConnectorBase):
     file.metadata = exif
     file.md5 = self.get_json_key(exif, ['md5'])
     file.exif_width = self.get_json_key(exif, ['ImageWidth']) or self.get_json_key(exif, ['ExifImageWidth'])
+    if isinstance(file.exif_width, tuple):
+      file.exif_width = file.exif_width[0]
     file.exif_height = self.get_json_key(exif, ['ImageLength']) or self.get_json_key(exif, ['ExifImageHeight'])
+    if isinstance(file.exif_height, tuple):
+      file.exif_height = file.exif_height[0]
     ap = self.get_json_key(exif, ['ApertureValue'])
     # ap is a tuple, store as a truncated double to 1 decimal place
     try:
