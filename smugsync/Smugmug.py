@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 import threading
 from urlparse import urlsplit, urlunsplit, parse_qsl
@@ -117,7 +118,6 @@ class Smugmug(object):
                                                         params={'count': '1000000', '_expand': 'ImageMetadata',
                                                                 '_expandmethod': 'inline'},
                                                         headers={'Accept': 'application/json'})
-        cached_album_images = {}
         try:
             cached_album_images = cached_album_images_response.json()
         except Exception as e:
@@ -147,10 +147,30 @@ class Smugmug(object):
             thread.join()
         return output
 
-    def get_json_key(self, json, key_array):
-        current = json
+    def download(self, album_image, destination_path):
+        source_uri = self.get_json_key(album_image, ['ArchivedUri'])
+        if source_uri is None:
+            print 'Error downloading image, could not get uri.'
+            return
+        try:
+            print 'Downloading: (' + self.get_json_key(album_image, ['FileName']) + ') ' + source_uri
+            r = self.session.get(source_uri, stream=True)
+            if r.status_code == 200:
+                with open(destination_path, 'wb') as f:
+                    r.raw.decode_content = True
+                    shutil.copyfileobj(r.raw, f)
+            else:
+                print ('Response code %d for : ' % r.status_code) + source_uri
+        except Exception as e:
+            print 'Exception downloading file at: ' + source_uri + ' :: ' + e
+
+    def mirror_album(self, album, local_root_path, remove_deleted_images=False):
+        pass
+
+    def get_json_key(self, input_json, key_array):
+        current = input_json
         for key in key_array:
-            if not key in current:
+            if key not in current:
                 return None
             current = current[key]
         return current
