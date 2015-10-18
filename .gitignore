@@ -3,6 +3,7 @@
 
 smugmug.data
 smugmug.cache
+smugmug.access
 filesystem.cache
 *.keys
 smugsync.cfg

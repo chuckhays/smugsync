@@ -71,12 +71,16 @@ class Smugmug(object):
                                      access_token_secret=self.access_token_secret)
 
     def get_authorized_user(self):
+        if self.session is None:
+            self.authenticate()
         auth_user_response = self.session.get(API_ORIGIN + '/api/v2!authuser',
                                               headers={'Accept': 'application/json'}).json()
         authed_user = self.get_json_key(auth_user_response, ['Response', 'User', 'Name'])
         return authed_user
 
     def get_albums(self, user, include_images=False):
+        if self.session is None:
+            self.authenticate()
         user_response = self.session.get(API_ORIGIN + '/api/v2/user/' + user,
                                          headers={'Accept': 'application/json'}).json()
         user_albums_uri = self.get_json_key(user_response, ['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
@@ -95,6 +99,28 @@ class Smugmug(object):
             print 'Exception getting albums :: ' + e.message
         albums_array = self.get_json_key(user_albums, ['Response', 'Album'])
         return albums_array
+
+    def get_album_images(self, album):
+        album_last_updated_string = self.get_json_key(album, ['ImagesLastUpdated'])
+        album_uri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
+        if album_uri is None:
+            print 'Could not find album images uri for album: ' + self.get_json_key(album, ['Name'])
+            return
+        cached_album_images_response = self.session.get(API_ORIGIN + album_uri,
+                                                        params={'count': '1000000', '_expand': 'ImageMetadata',
+                                                                '_expandmethod': 'inline'},
+                                                        headers={'Accept': 'application/json'})
+        cached_album_images = {}
+        try:
+            cached_album_images = cached_album_images_response.json()
+        except Exception as e:
+            print 'Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code
+            return
+        images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
+        if images_array is None:
+            print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
+            images_array = []
+        return images_array
 
     def get_json_key(self, json, key_array):
         current = json
