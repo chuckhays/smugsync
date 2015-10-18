@@ -69,3 +69,37 @@ class Smugmug(object):
                           json_data)
         self.session = OAuth1Session(self.api_key, self.oauth_secret, access_token=self.access_token,
                                      access_token_secret=self.access_token_secret)
+
+    def get_authorized_user(self):
+        auth_user_response = self.session.get(API_ORIGIN + '/api/v2!authuser',
+                                              headers={'Accept': 'application/json'}).json()
+        authed_user = self.get_json_key(auth_user_response, ['Response', 'User', 'Name'])
+        return authed_user
+
+    def get_albums(self, user, include_images=False):
+        user_response = self.session.get(API_ORIGIN + '/api/v2/user/' + user,
+                                         headers={'Accept': 'application/json'}).json()
+        user_albums_uri = self.get_json_key(user_response, ['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
+        if user_albums_uri is None:
+            print 'Could not find URI for user\'s albums'
+            return None
+        # Request all albums.
+        user_albums = {}
+        try:
+            params = {'count': '1000000'}
+            if include_images:
+                params['expand'] = 'AlbumImages'
+            user_albums = self.session.get(API_ORIGIN + user_albums_uri, params=params,
+                                           headers={'Accept': 'application/json'}).json()
+        except Exception as e:
+            print 'Exception getting albums :: ' + e.message
+        albums_array = self.get_json_key(user_albums, ['Response', 'Album'])
+        return albums_array
+
+    def get_json_key(self, json, key_array):
+        current = json
+        for key in key_array:
+            if not key in current:
+                return None
+            current = current[key]
+        return current
