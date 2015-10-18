@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 import threading
 from urlparse import urlsplit, urlunsplit, parse_qsl
@@ -117,7 +118,6 @@ class Smugmug(object):
                                                         params={'count': '1000000', '_expand': 'ImageMetadata',
                                                                 '_expandmethod': 'inline'},
                                                         headers={'Accept': 'application/json'})
-        cached_album_images = {}
         try:
             cached_album_images = cached_album_images_response.json()
         except Exception as e:
@@ -147,10 +147,82 @@ class Smugmug(object):
             thread.join()
         return output
 
-    def get_json_key(self, json, key_array):
-        current = json
+    def download(self, album_image, destination_folder, overwrite_if_exists=False):
+        source_uri = self.get_json_key(album_image, ['ArchivedUri'])
+        if source_uri is None:
+            print 'Error downloading image, could not get uri.'
+            return False
+        filename = self.get_json_key(album_image, ['FileName'])
+        if filename is None:
+            print 'Error downloading image, could not get file name.'
+            return False
+        destination_file = os.path.join(destination_folder, filename)
+        if os.path.isfile(destination_file) and not overwrite_if_exists:
+            # File already exists.
+            return True
+        try:
+            print 'Downloading: (' + filename + ') ' + source_uri
+            r = self.session.get(source_uri, stream=True)
+            if r.status_code == 200:
+                with open(destination_file, 'wb') as f:
+                    r.raw.decode_content = True
+                    shutil.copyfileobj(r.raw, f)
+            else:
+                print ('Response code %d for : ' % r.status_code) + source_uri
+                return False
+        except Exception as e:
+            print 'Exception downloading file at: ' + source_uri + ' :: ' + e
+            return False
+        return True
+
+    # TODO: add option to delete images that exist in the mirror but not on SmugMug.
+    def mirror_album_images(self, album_images, destination_folder_path):
+        if destination_folder_path is None:
+            print 'Must supply a destination path'
+            return False
+        # Create the folder if it doesn't exist.
+        try:
+            os.makedirs(destination_folder_path)
+        except OSError:
+            if not os.path.isdir(destination_folder_path):
+                raise
+        success = True
+        for album_image in album_images:
+            if not self.download(album_image, destination_folder_path):
+                success = False
+        return success
+
+    def mirror_album(self, album, destination_root_path):
+        if destination_root_path is None:
+            print 'Must supply a destination root path.'
+            return False
+        relative_path = os.path.normpath(self.get_json_key(album, ['UrlPath']))
+        if relative_path is None:
+            print 'Could not get relative path from album.'
+            return False
+        destination_path = relative_path.lstrip('\\')
+        destination_path = os.path.normpath(os.path.join(destination_root_path, destination_path))
+        album_images = self.get_album_images(album)
+        return self.mirror_album_images(album_images, destination_path)
+
+    def _mirror_albums_worker(self, album, destination_root_path):
+        with self.max_threads_lock:
+            print 'Starting mirroring of: ' + self.get_json_key(album, ['Name'])
+            self.mirror_album(album, destination_root_path)
+
+    def mirror_albums(self, albums, destination_root_path):
+        threads = []
+        for album in albums:
+            thread = threading.Thread(target=self._mirror_albums_worker, args=(album, destination_root_path,))
+            thread.start()
+            threads.append(thread)
+        for thread in threads:
+            thread.join()
+
+    def get_json_key(self, input_json, key_array):
+        current = input_json
         for key in key_array:
-            if not key in current:
+            if key not in current:
                 return None
             current = current[key]
         return current
