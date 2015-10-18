@@ -147,25 +147,50 @@ class Smugmug(object):
             thread.join()
         return output
 
-    def download(self, album_image, destination_path):
+    def download(self, album_image, destination_folder, overwrite_if_exists=False):
         source_uri = self.get_json_key(album_image, ['ArchivedUri'])
         if source_uri is None:
             print 'Error downloading image, could not get uri.'
-            return
+            return False
+        filename = self.get_json_key(album_image, ['FileName'])
+        if filename is None:
+            print 'Error downloading image, could not get file name.'
+            return False
+        destination_file = os.path.join(destination_folder, filename)
+        if os.path.isfile(destination_file) and not overwrite_if_exists:
+            # File already exists.
+            return True
         try:
-            print 'Downloading: (' + self.get_json_key(album_image, ['FileName']) + ') ' + source_uri
+            print 'Downloading: (' + filename + ') ' + source_uri
             r = self.session.get(source_uri, stream=True)
             if r.status_code == 200:
-                with open(destination_path, 'wb') as f:
+                with open(destination_file, 'wb') as f:
                     r.raw.decode_content = True
                     shutil.copyfileobj(r.raw, f)
             else:
                 print ('Response code %d for : ' % r.status_code) + source_uri
+                return False
         except Exception as e:
             print 'Exception downloading file at: ' + source_uri + ' :: ' + e
+            return False
+        return True
 
-    def mirror_album(self, album, local_root_path, remove_deleted_images=False):
-        pass
+    # TODO: add option to delete images that exist in the mirror but not on SmugMug.
+    def mirror_album_images(self, album_images, destination_folder_path):
+        if destination_folder_path is None:
+            print 'Must supply a destination path'
+            return
+        # Create the folder if it doesn't exist.
+        try:
+            os.makedirs(destination_folder_path)
+        except OSError:
+            if not os.path.isdir(destination_folder_path):
+                raise
+        success = True
+        for album_image in album_images:
+            if not self.download(album_image, destination_folder_path):
+                success = False
+        return success
 
     def get_json_key(self, input_json, key_array):
         current = input_json
