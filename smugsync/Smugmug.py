@@ -179,7 +179,7 @@ class Smugmug(object):
     def mirror_album_images(self, album_images, destination_folder_path):
         if destination_folder_path is None:
             print 'Must supply a destination path'
-            return
+            return False
         # Create the folder if it doesn't exist.
         try:
             os.makedirs(destination_folder_path)
@@ -191,6 +191,33 @@ class Smugmug(object):
             if not self.download(album_image, destination_folder_path):
                 success = False
         return success
+
+    def mirror_album(self, album, destination_root_path):
+        if destination_root_path is None:
+            print 'Must supply a destination root path.'
+            return False
+        relative_path = os.path.normpath(self.get_json_key(album, ['UrlPath']))
+        if relative_path is None:
+            print 'Could not get relative path from album.'
+            return False
+        destination_path = relative_path.lstrip('\\')
+        destination_path = os.path.normpath(os.path.join(destination_root_path, destination_path))
+        album_images = self.get_album_images(album)
+        return self.mirror_album_images(album_images, destination_path)
+
+    def _mirror_albums_worker(self, album, destination_root_path):
+        with self.max_threads_lock:
+            print 'Starting mirroring of: ' + self.get_json_key(album, ['Name'])
+            self.mirror_album(album, destination_root_path)
+
+    def mirror_albums(self, albums, destination_root_path):
+        threads = []
+        for album in albums:
+            thread = threading.Thread(target=self._mirror_albums_worker, args=(album, destination_root_path,))
+            thread.start()
+            threads.append(thread)
+        for thread in threads:
+            thread.join()
 
     def get_json_key(self, input_json, key_array):
         current = input_json
