@@ -67,5 +67,5 @@ class Smugmug(object):
             with open(self.access_cache_file, 'w') as json_data:
                 json.dump({ACCESS_TOKEN_KEY: self.access_token, ACCESS_TOKEN_SECRET_KEY: self.access_token_secret},
                           json_data)
-            self.session = OAuth1Session(self.api_key, self.oauth_secret, access_token=self.access_token,
-                                         access_token_secret=self.access_token_secret)
+        self.session = OAuth1Session(self.api_key, self.oauth_secret, access_token=self.access_token,
+                                     access_token_secret=self.access_token_secret)
