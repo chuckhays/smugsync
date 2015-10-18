@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import threading
 from urlparse import urlsplit, urlunsplit, parse_qsl
 from urllib import urlencode
 
@@ -18,6 +19,10 @@ AUTHORIZE_URL = OAUTH_ORIGIN + '/services/oauth/1.0a/authorize'
 API_ORIGIN = 'http://api.smugmug.com'
 BASE_URL = API_ORIGIN + '/api/v2'
 
+# Maximum number of threads to use when getting all album images.
+# Effectively sets the number of HTTP requests at once.
+MAX_THREADS = 10
+
 
 class Smugmug(object):
     def __init__(self, api_key=None, oauth_secret=None, app_name=None, access_cache_file='smugmug.access'):
@@ -28,6 +33,8 @@ class Smugmug(object):
         self.access_token_secret = None
         self.access_cache_file = access_cache_file
         self.session = None
+        self.max_threads_lock = threading.Semaphore(MAX_THREADS)
+        self.album_images_lock = threading.Lock()
 
     def add_auth_params(self, auth_url, access=None, permissions=None):
         if access is None and permissions is None:
@@ -121,6 +128,24 @@ class Smugmug(object):
             print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
             images_array = []
         return images_array
+
+    def _get_album_images_worker(self, album, output):
+        with self.max_threads_lock:
+            print 'Starting: ' + self.get_json_key(album, ['Name'])
+            album_images = self.get_album_images(album)
+            with self.album_images_lock:
+                output[self.get_json_key(album, ['Uri'])] = album_images
+
+    def get_all_album_images(self, albums):
+        threads = []
+        output = {}
+        for album in albums:
+            thread = threading.Thread(target=self._get_album_images_worker, args=(album, output,))
+            thread.start()
+            threads.append(thread)
+        for thread in threads:
+            thread.join()
+        return output
 
     def get_json_key(self, json, key_array):
         current = json
