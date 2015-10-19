@@ -6,7 +6,7 @@ from smugsync.Smugmug import Smugmug
 
 
 def main():
-    parser = argparse.ArgumentParser(description='SmugMug mirror script')
+    parser = argparse.ArgumentParser(description='SmugMug mirror script', fromfile_prefix_chars='@')
     parser.add_argument('-a', '--apikey', type=str, help='api key', required=True)
     parser.add_argument('-o', '--oauthsecret', type=str, help='oauth secret', required=True)
     parser.add_argument('-n', '--appname', type=str, help='app name', required=True)
