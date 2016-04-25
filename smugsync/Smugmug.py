@@ -153,6 +153,7 @@ class Smugmug(object):
             print 'Error downloading image, could not get uri.'
             return False
         filename = self.get_json_key(album_image, ['FileName'])
+        filename = self.sanitize_filename(filename)
         if filename is None:
             print 'Error downloading image, could not get file name.'
             return False
@@ -226,3 +227,7 @@ class Smugmug(object):
                 return None
             current = current[key]
         return current
+
+    def sanitize_filename(self, filename):
+        # Allows file names to contain alphanumerics and anything within keep_characters
+        return "".join(c for c in filename if c.isalnum() or c in keep_characters).rstrip()
