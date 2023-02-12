@@ -48,13 +48,13 @@ class File(object):
             if t is not None:
                 return t
         except Exception as e:
-            print 'Exception converting time string (%s) :: %s' % (time_string, e.message)
+            print('Exception converting time string (%s) :: %s' % (time_string, e.message))
         try:
             t = parser.parse(time_string)
             if t is not None:
                 return t
         except Exception as e:
-            print 'Exception converting time string (%s) :: %s' % (time_string, e.message)
+            print('Exception converting time string (%s) :: %s' % (time_string, e.message))
         return None
 
     @classmethod

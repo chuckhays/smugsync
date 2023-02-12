@@ -1,18 +1,18 @@
-import filesystem
-import smugmug
-import connectorbase
+from . import filesystem
+from . import smugmug
+from . import connectorbase
 import json
 from PIL import Image, ExifTags
 import time
 from clint.textui import progress
-from file import File
-import file as fileConstants
+from .file import File
+from . import file as fileConstants
 import os
 import shutil
 import traceback
-import ConfigParser
+import configparser
 
-from file import FileEncoder
+from .file import FileEncoder
 import pprint
 
 def match_sets(file_array):
@@ -75,7 +75,7 @@ def mirror(smc, smugmug, fs_folder, fs_file):
   # Make sure the destination path exists
   path = smugmug.relativePath
   if path is None:
-    print 'Error: no relative path for file: ' + file.originalPath
+    print('Error: no relative path for file: ' + file.originalPath)
     return
   path = path.lstrip('\\')
   path = os.path.normpath(os.path.join(fs_folder, path))
@@ -102,14 +102,14 @@ def mirror(smc, smugmug, fs_folder, fs_file):
 def main():
   start = time.clock()
 
-  config = ConfigParser.SafeConfigParser({'dest_path': 'e:\\'})
+  config = configparser.SafeConfigParser({'dest_path': 'e:\\'})
   config.read("smugsync.cfg")
   dest_path = config.get('smugsync', 'dest_path')
 
   fs = filesystem.FileSystemConnector( { connectorbase.ROOT_KEY: dest_path } )
   fs_files = fs.enumerate_objects()
   end_fs = time.clock()
-  print 'Finished FS, time elapsed: %f' % (end_fs - start)
+  print('Finished FS, time elapsed: %f' % (end_fs - start))
 
   start = time.clock()
   config_data = {}
@@ -122,9 +122,9 @@ def main():
   smc.authenticate()
   sm_files = smc.enumerate_objects()
   end_sm = time.clock()
-  print 'Finished SM, time elapsed: %f' % (end_sm - start)
-  print '\r\n'
-  print '\r\n'
+  print('Finished SM, time elapsed: %f' % (end_sm - start))
+  print('\r\n')
+  print('\r\n')
 
   #for f in files:
  #   print json.dumps(f, indent = 2)
@@ -136,8 +136,8 @@ def main():
   for fs_k in fs_files:
     fs_count += len(fs_files[fs_k])
 
-  print 'SM total: %d  FS total: %d' % (sm_count, fs_count)
-  print 'Starting file matching'
+  print('SM total: %d  FS total: %d' % (sm_count, fs_count))
+  print('Starting file matching')
   start = time.clock()
   both =[]
   sm = []
@@ -161,7 +161,7 @@ def main():
         files_array += sm_file_array
       combined_files[fs_file_key] = files_array
     except Exception as e:
-      print 'Exception on ' + fs_file_key + ' :: ' + e.message
+      print('Exception on ' + fs_file_key + ' :: ' + e.message)
 
   for sm_file_key in sm_files:
     combined_files[sm_file_key] = sm_files[sm_file_key]
@@ -201,8 +201,8 @@ def main():
     #      csv.write('%s,%d,' % (csv_file.originalPath, csv_file.size))
     #    csv.write('\r\n')
   #csv.close()
-  print 'Done: %f sec' % (time.clock()-start)
-  print 'Both: %d SM: %d FS: %d fuzzy: %d' % (len(both), len(sm), len(fs), fuzzy)
+  print('Done: %f sec' % (time.clock()-start))
+  print('Both: %d SM: %d FS: %d fuzzy: %d' % (len(both), len(sm), len(fs), fuzzy))
 
   # Mirror smugmug to local path
   # If we can find a matched pair, we have an md5sum identical file we can use.
@@ -212,6 +212,6 @@ if __name__ == "__main__":
   try:
     main()
   except Exception as e:
-    print 'Exception: ' + e.message
+    print('Exception: ' + e.message)
     tb = traceback.format_exc()
-    print tb
+    print(tb)

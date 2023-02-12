@@ -3,8 +3,8 @@ import os
 import shutil
 import sys
 import threading
-from urlparse import urlsplit, urlunsplit, parse_qsl
-from urllib import urlencode
+from urllib.parse import urlsplit, urlunsplit, parse_qsl
+from urllib.parse import urlencode
 
 from rauth import OAuth1Service
 from rauth import OAuth1Session
@@ -62,13 +62,13 @@ class Smugmug(object):
                                     authorize_url=AUTHORIZE_URL, base_url=BASE_URL)
             rt, rts = service.get_request_token(params={'oauth_callback': 'oob'})
             auth_url = self.add_auth_params(service.get_authorize_url(rt), access='Full', permissions='Modify')
-            print('Go to %s in a web browser.' % auth_url)
+            print(('Go to %s in a web browser.' % auth_url))
             sys.stdout.write('Enter the six-digit code: ')
             sys.stdout.flush()
             verifier = sys.stdin.readline().strip()
             at, ats = service.get_access_token(rt, rts, params={'oauth_verifier': verifier})
-            print('Access token: %s' % at)
-            print('Access token secret: %s' % ats)
+            print(('Access token: %s' % at))
+            print(('Access token secret: %s' % ats))
             self.access_token = at
             self.access_token_secret = ats
             # Cache access token and access token secret so we don't have to authenticate on the next run.
@@ -93,7 +93,7 @@ class Smugmug(object):
                                          headers={'Accept': 'application/json'}).json()
         user_albums_uri = self.get_json_key(user_response, ['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
         if user_albums_uri is None:
-            print 'Could not find URI for user\'s albums'
+            print('Could not find URI for user\'s albums')
             return None
         # Request all albums.
         user_albums = {}
@@ -104,7 +104,7 @@ class Smugmug(object):
             user_albums = self.session.get(API_ORIGIN + user_albums_uri, params=params,
                                            headers={'Accept': 'application/json'}).json()
         except Exception as e:
-            print 'Exception getting albums :: ' + e.message
+            print('Exception getting albums :: ' + e.message)
         albums_array = self.get_json_key(user_albums, ['Response', 'Album'])
         return albums_array
 
@@ -112,7 +112,7 @@ class Smugmug(object):
         album_last_updated_string = self.get_json_key(album, ['ImagesLastUpdated'])
         album_uri = self.get_json_key(album, ['Uris', 'AlbumImages', 'Uri'])
         if album_uri is None:
-            print 'Could not find album images uri for album: ' + self.get_json_key(album, ['Name'])
+            print('Could not find album images uri for album: ' + self.get_json_key(album, ['Name']))
             return
         cached_album_images_response = self.session.get(API_ORIGIN + album_uri,
                                                         params={'count': '1000000', '_expand': 'ImageMetadata',
@@ -121,17 +121,17 @@ class Smugmug(object):
         try:
             cached_album_images = cached_album_images_response.json()
         except Exception as e:
-            print 'Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code
+            print('Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code)
             return
         images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
         if images_array is None:
-            print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
+            print('Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri)
             images_array = []
         return images_array
 
     def _get_album_images_worker(self, album, output):
         with self.max_threads_lock:
-            print 'Starting: ' + self.get_json_key(album, ['Name'])
+            print('Starting: ' + self.get_json_key(album, ['Name']))
             album_images = self.get_album_images(album)
             with self.album_images_lock:
                 output[self.get_json_key(album, ['Uri'])] = album_images
@@ -150,36 +150,36 @@ class Smugmug(object):
     def download(self, album_image, destination_folder, overwrite_if_exists=False):
         source_uri = self.get_json_key(album_image, ['ArchivedUri'])
         if source_uri is None:
-            print 'Error downloading image, could not get uri.'
+            print('Error downloading image, could not get uri.')
             return False
         filename = self.get_json_key(album_image, ['FileName'])
         filename = self.sanitize_filename(filename)
         if filename is None:
-            print 'Error downloading image, could not get file name.'
+            print('Error downloading image, could not get file name.')
             return False
         destination_file = os.path.join(destination_folder, filename)
         if os.path.isfile(destination_file) and not overwrite_if_exists:
             # File already exists.
             return True
         try:
-            print 'Downloading: (' + filename + ') ' + source_uri
+            print('Downloading: (' + filename + ') ' + source_uri)
             r = self.session.get(source_uri, stream=True)
             if r.status_code == 200:
                 with open(destination_file, 'wb') as f:
                     r.raw.decode_content = True
                     shutil.copyfileobj(r.raw, f)
             else:
-                print ('Response code %d for : ' % r.status_code) + source_uri
+                print(('Response code %d for : ' % r.status_code) + source_uri)
                 return False
         except Exception as e:
-            print 'Exception downloading file at: ' + source_uri + ' :: ' + e
+            print('Exception downloading file at: ' + source_uri + ' :: ' + e)
             return False
         return True
 
     # TODO: add option to delete images that exist in the mirror but not on SmugMug.
     def mirror_album_images(self, album_images, destination_folder_path):
         if destination_folder_path is None:
-            print 'Must supply a destination path'
+            print('Must supply a destination path')
             return False
         # Create the folder if it doesn't exist.
         try:
@@ -195,11 +195,11 @@ class Smugmug(object):
 
     def mirror_album(self, album, destination_root_path):
         if destination_root_path is None:
-            print 'Must supply a destination root path.'
+            print('Must supply a destination root path.')
             return False
         relative_path = os.path.normpath(self.get_json_key(album, ['UrlPath']))
         if relative_path is None:
-            print 'Could not get relative path from album.'
+            print('Could not get relative path from album.')
             return False
         destination_path = relative_path.lstrip('\\')
         destination_path = os.path.normpath(os.path.join(destination_root_path, destination_path))
@@ -208,7 +208,7 @@ class Smugmug(object):
 
     def _mirror_albums_worker(self, album, destination_root_path):
         with self.max_threads_lock:
-            print 'Starting mirroring of: ' + self.get_json_key(album, ['Name'])
+            print('Starting mirroring of: ' + self.get_json_key(album, ['Name']))
             self.mirror_album(album, destination_root_path)
 
     def mirror_albums(self, albums, destination_root_path):

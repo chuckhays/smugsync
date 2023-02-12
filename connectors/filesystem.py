@@ -1,8 +1,8 @@
 import datetime
 import os
-from connectorbase import ConnectorBase
-from file import File
-import file as fileConstants
+from .connectorbase import ConnectorBase
+from .file import File
+from . import file as fileConstants
 from PIL import Image, ExifTags
 import shelve
 import json
@@ -27,7 +27,7 @@ class FileSystemConnector(ConnectorBase):
     return True
         
   def enumerate_objects(self):
-    print 'Enumerating files in %s' % self.root
+    print('Enumerating files in %s' % self.root)
     ignore_dir = os.path.join(self.root, 'ignore')
     results = {}
     # Recursively list all of the files under root.
@@ -68,19 +68,19 @@ class FileSystemConnector(ConnectorBase):
     try:
       exif = self.check_cache(file)
     except Exception as e:
-      print 'Exception checking cached data for file: ' + file.originalPath + ' :: ' + e.message
+      print('Exception checking cached data for file: ' + file.originalPath + ' :: ' + e.message)
     if exif is None or exif == {}:
       img = None
       try:
         img = Image.open(file.originalPath)
         exif = {
           ExifTags.TAGS[k]: v
-          for k, v in img._getexif().items()
+          for k, v in list(img._getexif().items())
           if k in ExifTags.TAGS
         }
         exif['md5'] = file.get_filesystem_md5()
       except Exception as e:
-        print 'Exception reading EXIF from: ' + file.originalPath + ' :: ' + e.message
+        print('Exception reading EXIF from: ' + file.originalPath + ' :: ' + e.message)
         exif = {}
       self.put_cache(file, exif)
 

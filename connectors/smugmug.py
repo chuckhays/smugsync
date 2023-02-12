@@ -1,8 +1,8 @@
 import datetime
 import os
-from connectorbase import ConnectorBase
-from file import File, FileEncoder
-import file as fileConstants
+from .connectorbase import ConnectorBase
+from .file import File, FileEncoder
+from . import file as fileConstants
 import sys
 import json
 import time
@@ -14,8 +14,8 @@ import shelve
 from rauth import OAuth1Service
 from rauth import OAuth1Session
 #from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
-from urlparse import urlsplit, urlunsplit, parse_qsl
-from urllib import urlencode
+from urllib.parse import urlsplit, urlunsplit, parse_qsl
+from urllib.parse import urlencode
 
 from clint.textui import progress
 from dateutil import parser
@@ -63,19 +63,19 @@ class SmugMugConnector(ConnectorBase):
   def download(self, file, dst):
     src = file.source
     if src is None:
-      print 'Error downloading file: ' + file.originalPath
+      print('Error downloading file: ' + file.originalPath)
       return
     try:
-      print 'Downloading: (' + file.name + ') ' + src
+      print('Downloading: (' + file.name + ') ' + src)
       r = self.session.get(src, stream=True)
       if r.status_code == 200:
         with open(dst, 'wb') as f:
           r.raw.decode_content = True
           shutil.copyfileobj(r.raw, f)
       else:
-        print ('Response code %d for : ' % r.status_code) + src
+        print(('Response code %d for : ' % r.status_code) + src)
     except Exception as e:
-      print 'Exception downloading file at: ' + src + ' :: ' + e
+      print('Exception downloading file at: ' + src + ' :: ' + e)
 
   def delete(self, file):
     uri = file.uri
@@ -100,14 +100,14 @@ class SmugMugConnector(ConnectorBase):
       service = OAuth1Service(name=self.app_name, consumer_key=self.api_key, consumer_secret=self.oauth_secret, request_token_url=REQUEST_TOKEN_URL, access_token_url=ACCESS_TOKEN_URL, authorize_url=AUTHORIZE_URL, base_url=BASE_URL)
       rt, rts = service.get_request_token(params={'oauth_callback': 'oob'})
       auth_url = self.add_auth_params(service.get_authorize_url(rt), access='Full', permissions='Modify')
-      print('Go to %s in a web browser.' % auth_url)
+      print(('Go to %s in a web browser.' % auth_url))
 
       sys.stdout.write('Enter the six-digit code: ')
       sys.stdout.flush()
       verifier = sys.stdin.readline().strip()
       at, ats = service.get_access_token(rt, rts, params={'oauth_verifier': verifier})
-      print('Access token: %s' % at)
-      print('Access token secret: %s' % ats)
+      print(('Access token: %s' % at))
+      print(('Access token secret: %s' % ats))
       
       self.access_token = at
       self.access_token_secret = ats
@@ -149,10 +149,10 @@ class SmugMugConnector(ConnectorBase):
           if cached_album_images_json is not None:
             cached_album_images = json.loads(cached_album_images_json)
         except Exception as e:
-          print 'Exception checking cache for album: ' + album_uri + ' :: ' + e.message
+          print('Exception checking cache for album: ' + album_uri + ' :: ' + e.message)
       if cached_album_images is None:
         if album_uri is None:
-          print 'Could not find album images Uri for album: ' + self.get_json_key(album, ['Name'])
+          print('Could not find album images Uri for album: ' + self.get_json_key(album, ['Name']))
           return
         cached_album_images_response = self.session.get(API_ORIGIN + album_uri, params = {'count':'1000000', '_expand' : 'ImageMetadata', '_expandmethod' : 'inline'}, headers={'Accept': 'application/json'})
         cached_album_images = {}
@@ -161,12 +161,12 @@ class SmugMugConnector(ConnectorBase):
           with self.cache_lock:
             self.put_cache(album_uri, album_last_updated_string, album, cached_album_images_response.text)
         except Exception as e:
-          print 'Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code
-          print 'Full response:' + cached_album_images_response.text
+          print('Exception getting album :: ' + album_uri + ' :: ' + e.message + ' :: (%d)' % cached_album_images_response.status_code)
+          print('Full response:' + cached_album_images_response.text)
 
       images_array = self.get_json_key(cached_album_images, ['Response', 'AlbumImage'])
       if images_array is None:
-        print 'Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri
+        print('Could not get images array for album: ' + self.get_json_key(album, ['Name']) + 'uri:' + album_uri)
         images_array = []
 
       for image in images_array:
@@ -216,19 +216,19 @@ class SmugMugConnector(ConnectorBase):
     authUser = self.session.get(API_ORIGIN + '/api/v2!authuser', headers={'Accept': 'application/json'}).json()
     userAlbumsUri = self.get_json_key(authUser,['Response', 'User', 'Uris', 'UserAlbums', 'Uri'])
     if userAlbumsUri is None:
-      print 'Could not find URI for user\'s albums'
+      print('Could not find URI for user\'s albums')
       return self.images
     # Request all albums.
     userAlbums = {}
     try:
       userAlbums = self.session.get(API_ORIGIN + userAlbumsUri, params = {'count':'1000000', 'expand':'AlbumImages'}, headers={'Accept': 'application/json'}).json()
     except Exception as e:
-      print 'Exception getting albums :: ' + e.message
+      print('Exception getting albums :: ' + e.message)
 
 
     albums_array = self.get_json_key(userAlbums, ['Response', 'Album'])
     if albums_array is None:
-      print 'Could not find list of albums for user'
+      print('Could not find list of albums for user')
       return self.images
 
     self.bar = progress.Bar(expected_size = len(albums_array))

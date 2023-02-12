@@ -16,7 +16,7 @@ def main():
 
         actual_extension = None
         if result is None:
-          print 'No type for: ' + path
+          print('No type for: ' + path)
         elif 'image/jpeg' in result:
           actual_extension = 'JPG'
         elif 'image/gif' in result:
@@ -28,28 +28,28 @@ def main():
         elif 'video/mp4' in result:
           actual_extension = 'MP4'
         else:
-          print 'Unknown type: ' + result + ' : ' + path
+          print('Unknown type: ' + result + ' : ' + path)
 
         if actual_extension is None:
           continue
 
         if fileExtension != actual_extension.lower():
           if fileExtension == 'jpeg' and actual_extension.lower() == 'jpg':
-            print 'skipped jpeg->jpg'
+            print('skipped jpeg->jpg')
             continue
           try:
             total_renames += 1
             new_path = without_extension + '.' + actual_extension
-            print 'Need to fix extension of ' + path + ' to: ' + new_path
+            print('Need to fix extension of ' + path + ' to: ' + new_path)
             #uncomment to do actual renames
             #os.rename(path, new_path)
           except Exception as e:
-            print 'Exception renaming file: ' + e
-  print 'done, total renames : %d' % total_renames
+            print('Exception renaming file: ' + e)
+  print('done, total renames : %d' % total_renames)
 
 
 if __name__ == "__main__":
   try:
     main()
   except Exception as e:
-    print 'Exception: ' + e.message
+    print('Exception: ' + e.message)

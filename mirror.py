@@ -24,6 +24,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print 'Exception: ' + e.message
+        print('Exception: ' + e.message)
         tb = traceback.format_exc()
-        print tb
+        print(tb)

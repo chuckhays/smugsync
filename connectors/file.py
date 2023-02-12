@@ -71,7 +71,7 @@ class File(object):
       return None
     # Example format: u'2013:02:14 12:31:58'
     try:
-      if time_string == u'2013:02:14 12:31:58':
+      if time_string == '2013:02:14 12:31:58':
         pass
       t = datetime.strptime(time_string, '%Y:%m:%d %H:%M:%S')
       if t is not None:

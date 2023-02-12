@@ -1,2 +1,2 @@
-from File import File
-from Smugmug import Smugmug
+from .File import File
+from .Smugmug import Smugmug
